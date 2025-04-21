@@ -72,8 +72,6 @@ This job queue system is designed with **security**, **performance**, and **deve
 
 ---
 
----
-
 ## 🚦 Roadmap & Learning Milestones
 
 ### ✅ Phase 1: Foundation – REST API + PostgreSQL + Auth
