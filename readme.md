@@ -12,6 +12,8 @@ GoQueue is a production-ready, event-driven Job Queue system built with **Golang
 
 ## 📦 Project Structure (Hexagonal Architecture)
 
+![Hexagonal Architecture](./hexagonal_architecture.webp)
+
 ```
 go-queue/
 ├── cmd/
@@ -31,18 +33,44 @@ go-queue/
 
 ---
 
-## 🔐 Multi-User + JWT Authentication (New)
+## 🎯 Application Features Overview
 
-This system is **secured** so only logged-in users can:
-- Submit jobs
-- View their own jobs
-- Retry or cancel their own jobs
+This job queue system is designed with **security**, **performance**, and **developer-friendliness** in mind. Below is a summary of what it offers:
 
-### Auth Features:
-- Signup & login endpoints
-- Passwords are securely hashed with `bcrypt`
-- JWT-based access tokens
-- Middleware to protect routes and get the current user
+### 🔐 Secure Multi-User System
+- Users can **sign up** and **log in**
+- Passwords are hashed using `bcrypt`
+- JWT-based authentication with access tokens
+- Middleware to protect routes and identify the current user
+- Users can only manage **their own jobs**
+
+### 📦 Job Management
+- Submit new jobs with type, payload, and priority
+- Job queue system manages status: `pending`, `processing`, `completed`, `failed`
+- Users can **retry**, **cancel**, or **delete** their own jobs
+- Each job tracks number of attempts, timestamps, and status updates
+
+### ⚙️ Background Processing
+- Lightweight **Goroutines** handle job execution asynchronously
+- Retry failed jobs automatically based on logic
+- Jobs can be scheduled for future execution using `run_at` field
+
+### 📡 Real-Time Updates (WebSocket)
+- WebSocket connection to push live job updates to the user dashboard
+- Instant status refresh for running/completed/failed jobs
+
+### 🛡️ Access Control & Isolation
+- Users are sandboxed; no cross-access to other users' jobs
+- Auth middleware ensures only valid users can access protected routes
+
+### 📊 Developer & DevOps Friendly
+- Modular code structure using **Go + PostgreSQL**
+- RESTful API built with **Fiber** or **Chi**
+- Uses **pgx** or **SQLx** for database layer
+- Dockerized for easy local dev and deployment
+- Can be deployed to **GCP**, **Fly.io**, etc.
+
+---
 
 ---
 
@@ -50,16 +78,16 @@ This system is **secured** so only logged-in users can:
 
 ### ✅ Phase 1: Foundation – REST API + PostgreSQL + Auth
 
-- [ ] Set up project structure with Hexagonal Architecture
+- [x] Set up project structure with Hexagonal Architecture
+- [ ] Create `users` and `jobs` tables
+- [ ] PostgreSQL + pgx
 - [ ] Add user authentication:
   - [ ] Signup (`POST /signup`)
   - [ ] Login (`POST /login`)
   - [ ] JWT token generation & middleware
-- [ ] Create `users` and `jobs` tables
 - [ ] REST API for:
   - [ ] Submit job (auth required)
   - [ ] Get job status (auth required)
-- [ ] PostgreSQL + SQLx or pgx
 - [ ] Docker + Compose setup
 
 ---
@@ -136,12 +164,12 @@ This system is **secured** so only logged-in users can:
 - 🧠 **Language:** Go (Golang)  
 - 🗄️ **Database:** PostgreSQL  
 - 🔐 **Authentication:** JWT + bcrypt  
-- 🌐 **API Framework:** Fiber / Chi  
-- 🛢️ **DB Layer:** pgx / SQLx  
+- 🌐 **API Framework:** Chi  
+- 🛢️ **DB Layer:** pgx  
 - 🧵 **Background Tasks:** Goroutines  
 - 🐳 **DevOps & Containerization:** Docker  
 - ⚡ **Realtime Communication:** WebSocket  
-- ☁️ **Deployment:** GCP / Fly.io  
+- ☁️ **Deployment:** Github
 
 ---
 
@@ -160,7 +188,7 @@ This system is **secured** so only logged-in users can:
 ## 📚 Resources
 
 - [JWT Authentication in Go](https://dev.to/macisamuele/jwt-authentication-in-go-1j7h)
-- [Clean Architecture in Go](https://medium.com/@matryer/structuring-go-applications-clean-architecture-ef7d7c6fcd26)
+- [Hexagonal Architecture in Go](https://medium.com/@matryer/structuring-go-applications-clean-architecture-ef7d7c6fcd26)
 - [Go Channels and Workers](https://gobyexample.com/worker-pools)
 - [Job Queues in Postgres](https://www.crunchydata.com/blog/building-a-job-queue-with-postgresql)
 
