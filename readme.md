@@ -77,16 +77,16 @@ This job queue system is designed with **security**, **performance**, and **deve
 ### ✅ Phase 1: Foundation – REST API + PostgreSQL + Auth
 
 - [x] Set up project structure with Hexagonal Architecture
-- [ ] Create `users` and `jobs` tables
-- [ ] PostgreSQL + pgx
-- [ ] Add user authentication:
-  - [ ] Signup (`POST /signup`)
+- [x] Create `users` and `jobs` tables
+- [x] PostgreSQL + pgx
+- [/] Add user authentication:
+  - [x] Signup (`POST /signup`)
   - [ ] Login (`POST /login`)
   - [ ] JWT token generation & middleware
 - [ ] REST API for:
   - [ ] Submit job (auth required)
   - [ ] Get job status (auth required)
-- [ ] Docker + Compose setup
+- [x] Docker + Compose setup
 
 ---
 
@@ -143,8 +143,32 @@ This job queue system is designed with **security**, **performance**, and **deve
 ## 🌐 API Endpoints
 
 ### 🔑 Auth Routes
-- `POST /signup` – Register new user
-- `POST /login` – Authenticate and get token
+- **`POST /api/v1/users`**
+
+  - Description: Register a new user.
+  - Request Body:
+    ```json
+    {
+      "name": "Sirajum Munir",
+      "email": "sirajummunir31@gmail.com",
+      "password": "123456"
+    }
+    ```
+  - Response Body:
+    ```json
+    {
+      "success": true,
+      "message": "User registered successfully",
+      "data": {
+        "id": "a85f92e9-50a0-49f7-993e-f0c166b72f04",
+        "name": "Sirajum Munir",
+        "email": "sirajummunir31@gmail.com",
+        "email_verified": false,
+        "verification_token": "890b1942572ef7d31095db5304dc1910960e118fd08d680b91e9afe9500d414d",
+        "last_login_at": "2025-04-22T22:09:55+06:00"
+      }
+    }
+    ```
 
 ### 📦 Job Routes (require JWT)
 - `POST /jobs` – Submit a new job (auth required)

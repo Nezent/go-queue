@@ -1,20 +1,22 @@
 package bootstrap
 
 import (
-	"github.com/jackc/pgx/v5"
+	"github.com/Nezent/go-queue/internal/handler"
+	"github.com/Nezent/go-queue/internal/repository"
+	"github.com/Nezent/go-queue/internal/service"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type Container struct {
-	// UserHandler handler.UserHandler
-	// ... other handlers
+	UserHandler handler.UserHandler
 }
 
-func Initialize(db *pgx.Conn) *Container {
+func Initialize(db *pgxpool.Pool) *Container {
 
 	return &Container{
-		// UserHandler: handler.UserHandler{
-		// 	Service: service.NewUserService(repository.NewUserRepositoryDatabase(db)),
-		// },
+		UserHandler: handler.UserHandler{
+			Service: service.NewUserService(repository.NewUserRepository(db)),
+		},
 		// other handlers...
 	}
 }

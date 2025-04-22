@@ -9,7 +9,7 @@ func RegisterRoutes(r chi.Router, c *bootstrap.Container) {
 	r.Route("/api/v1", func(r chi.Router) {
 		// Group user routes
 		r.Route("/users", func(r chi.Router) {
-			// r.Post("/", c.UserHandler.CreateUser)
+			r.Post("/", c.UserHandler.RegisterUser)
 			// r.Get("/{user_id}", c.UserHandler.GetUserById)
 			// r.Get("/", c.UserHandler.GetUsers)
 		})
