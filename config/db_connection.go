@@ -5,22 +5,19 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strconv"
 	"time"
 
-	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/joho/godotenv"
 )
 
-// ConnectDB establishes a new connection to the PostgreSQL database using pgx.Conn.
-// It loads environment variables and sets a connection timeout.
-// It returns a connection and an error for proper error handling.
-func ConnectDB() (*pgx.Conn, error) {
-	// Load .env file (optional)
+// ConnectDB establishes a pooled connection to PostgreSQL using pgxpool.Pool with min/max connections configured.
+func ConnectDB() (*pgxpool.Pool, error) {
 	if err := godotenv.Load(".env"); err != nil {
-		log.Println("[INFO] .env file not found, falling back to system environment variables")
+		log.Println("[INFO] .env file not found, using system environment variables")
 	}
 
-	// Construct DSN
 	dsn := fmt.Sprintf("postgres://%s:%s@%s:%s/%s",
 		getEnv("DB_USER", "postgres"),
 		getEnv("DB_PASSWORD", ""),
@@ -29,31 +26,50 @@ func ConnectDB() (*pgx.Conn, error) {
 		getEnv("DB_NAME", "postgres"),
 	)
 
-	// Connect with timeout
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	conn, err := pgx.Connect(ctx, dsn)
+	// Load config from DSN
+	cfg, err := pgxpool.ParseConfig(dsn)
 	if err != nil {
-		log.Printf("[ERROR] Failed to connect to database: %v\n", err)
+		log.Printf("[ERROR] Failed to parse database config: %v\n", err)
 		return nil, err
 	}
 
-	// Ping to verify
-	if err := conn.Ping(ctx); err != nil {
-		_ = conn.Close(ctx)
+	// Set min/max connections from environment or use default
+	cfg.MinConns = int32(getEnvAsInt("DB_MIN_CONNS", 2))
+	cfg.MaxConns = int32(getEnvAsInt("DB_MAX_CONNS", 10))
+
+	dbpool, err := pgxpool.NewWithConfig(ctx, cfg)
+	if err != nil {
+		log.Printf("[ERROR] Failed to create DB pool: %v\n", err)
+		return nil, err
+	}
+
+	// Ping to verify connection
+	if err := dbpool.Ping(ctx); err != nil {
+		dbpool.Close()
 		log.Printf("[ERROR] Database ping failed: %v\n", err)
 		return nil, err
 	}
 
-	log.Println("[INFO] Successfully connected to the PostgreSQL database")
-	return conn, nil
+	log.Printf("[INFO] Connected to PostgreSQL — MinConns: %d, MaxConns: %d", cfg.MinConns, cfg.MaxConns)
+	return dbpool, nil
 }
 
-// getEnv fetches env var or returns a fallback
+// getEnv returns the value of an environment variable or fallback if not found
 func getEnv(key, fallback string) string {
 	if value := os.Getenv(key); value != "" {
 		return value
+	}
+	return fallback
+}
+
+// getEnvAsInt parses an environment variable as int or returns fallback
+func getEnvAsInt(key string, fallback int) int {
+	valStr := os.Getenv(key)
+	if val, err := strconv.Atoi(valStr); err == nil {
+		return val
 	}
 	return fallback
 }

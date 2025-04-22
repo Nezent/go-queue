@@ -5,6 +5,11 @@ go 1.23.4
 require github.com/jackc/pgx v3.6.2+incompatible
 
 require (
+	github.com/jackc/puddle/v2 v2.2.2 // indirect
+	golang.org/x/sync v0.10.0 // indirect
+)
+
+require (
 	github.com/go-chi/chi/v5 v5.2.1 // indirect
 	github.com/go-chi/cors v1.2.1
 	github.com/google/uuid v1.6.0 // indirect

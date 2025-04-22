@@ -4,19 +4,36 @@ import (
 	"context"
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/Nezent/go-queue/cmd/routes"
 	"github.com/Nezent/go-queue/config"
 	"github.com/Nezent/go-queue/internal/bootstrap"
+	"github.com/Nezent/go-queue/internal/middleware"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/cors"
 )
 
 func main() {
+
+	// Connect to DB
+	db, err := config.ConnectDB()
+	if err != nil {
+		log.Fatalf("Failed to connect to database: %v", err)
+	}
+	defer func() {
+		_, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		db.Close()
+		log.Println("Database pool closed")
+	}()
+
+	// Initialize Chi router
 	r := chi.NewRouter()
+	r.Use(middleware.WithTransaction(db))
 
 	r.Use(cors.Handler(cors.Options{
-		AllowedOrigins:   []string{"*"}, // Replace with your allowed origins
+		AllowedOrigins:   []string{"*"},
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token"},
 		ExposedHeaders:   []string{"Link"},
@@ -24,24 +41,14 @@ func main() {
 		MaxAge:           30,
 	}))
 
-	// Middleware
-	// r.Use(chi.Logger)
-	// r.Use(middleware.WithTransaction(db))
-	// r.Use(middleware.AuthMiddleware)
-	// r.Use(middleware.Recoverer)
-
-	// Database connection
-	db, err := config.ConnectDB()
-	if err != nil {
-		log.Fatalf("Failed to connect to database: %v", err)
-	}
-	defer db.Close(context.Background())
 	// Dependency injection
 	container := bootstrap.Initialize(db)
 
-	// Add all routes
+	// Register all routes
 	routes.RegisterRoutes(r, container)
 
-	log.Println("🚀 Server running at :8080")
-	http.ListenAndServe(":8080", r)
+	log.Println("🚀 Server running at http://localhost:8080")
+	if err := http.ListenAndServe(":8080", r); err != nil {
+		log.Fatalf("Server failed: %v", err)
+	}
 }

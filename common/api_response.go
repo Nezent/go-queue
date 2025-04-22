@@ -6,18 +6,18 @@ import (
 )
 
 type APIResponse struct {
-	Success bool        `json:"success"`
-	Message string      `json:"message,omitempty"`
-	Data    interface{} `json:"data,omitempty"`
-	Error   string      `json:"error,omitempty"`
+	Success bool   `json:"success"`
+	Message string `json:"message,omitempty"`
+	Data    any    `json:"data,omitempty"`
+	Error   any    `json:"error,omitempty"`
 }
 
-func SuccessResponse(message string, data interface{}) APIResponse {
+func SuccessResponse(message string, data any) APIResponse {
 	return APIResponse{Success: true, Message: message, Data: data}
 }
 
-func ErrorResponse(errMsg string) APIResponse {
-	return APIResponse{Success: false, Error: errMsg}
+func ErrorResponse(err any) APIResponse {
+	return APIResponse{Success: false, Error: err}
 }
 
 func RespondJSON(w http.ResponseWriter, statusCode int, payload APIResponse) {

@@ -1,27 +1,72 @@
 package repository
 
 import (
+	"context"
+	"time"
+
 	"github.com/Nezent/go-queue/common"
 	"github.com/Nezent/go-queue/internal/domain"
-	"github.com/jackc/pgx"
+	"github.com/Nezent/go-queue/internal/middleware"
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type UserRepository interface {
-	RegisterUser(domain.User) common.APIResponse
-	LoginUser(username, password string) (int, error)
-	GetUserByID(userID int) (string, error)
+	RegisterUser(context.Context, domain.User) (*domain.User, *common.AppError)
+	// LoginUser(username, password string) (int, error)
+	// GetUserByID(userID int) (string, error)
 }
 
 type userRepository struct {
-	db *pgx.Conn
+	db *pgxpool.Pool
 }
 
-func (ur userRepository) RegisterUser(user domain.User) common.APIResponse {
-	// Implement the logic to register a user in the database
-	// This is a placeholder implementation
-	return common.SuccessResponse("User registered successfully", nil)
+func (ur userRepository) RegisterUser(ctx context.Context, user domain.User) (*domain.User, *common.AppError) {
+	// Extract transaction from context
+	tx, err := middleware.GetTxFromContext(ctx)
+	if err != nil {
+		return nil, common.NewUnexpectedServerError("Transaction context not found", err)
+	}
+
+	// Hash password
+	hashedPassword, err := common.GenerateHashPassword(user.Password)
+	if err != nil {
+		return nil, common.NewUnexpectedServerError("Failed to hash password", err)
+	}
+
+	// Generate verification token (basic version, in production use a secure random generator)
+	verificationToken, err := common.GenerateHash(uuid.New().String())
+	if err != nil {
+		return nil, common.NewUnexpectedServerError("Failed to generate validation token", err)
+	}
+	// Prepare user data
+	var userID uuid.UUID
+
+	// Insert into database
+	query := `
+		INSERT INTO users (name, email, password_hash, email_verified, verification_token, last_login_at, created_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id
+	`
+	err = tx.QueryRow(ctx, query,
+		user.Name, user.Email, hashedPassword, false,
+		verificationToken, time.Now().Format(time.RFC3339), time.Now().Format(time.RFC3339),
+	).Scan(&userID)
+	if err != nil {
+		if pgErr, ok := err.(*pgconn.PgError); ok && pgErr.Code == "23505" {
+			return nil, common.NewDuplicateError("Email already in use")
+		}
+		return nil, common.NewUnexpectedServerError("Failed to register user", err)
+	}
+
+	user.ID = userID
+	verification_token := verificationToken
+	user.VerificationToken = *verification_token
+	user.LastLoginAt = time.Now().Format(time.RFC3339)
+
+	return &user, nil
 }
 
-func NewUserRepository(db *pgx.Conn) userRepository {
+func NewUserRepository(db *pgxpool.Pool) userRepository {
 	return userRepository{db: db}
 }
