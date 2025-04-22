@@ -1,0 +1,44 @@
+services:
+  client:
+    build: .
+    container_name: go-queue
+    ports:
+      - 8080:8080
+    volumes:
+      - .:/usr/src/app
+    depends_on:
+      - database
+    environment:
+      - TZ=Asia/Dhaka
+    restart: on-failure
+
+  database:
+    image: postgres:alpine
+    container_name: go-queue-db
+    env_file:
+      - .env
+    environment:
+      - POSTGRES_USER=${DB_USER}
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+      - POSTGRES_DB=${DB_NAME}
+      - TZ=Asia/Dhaka 
+    ports:
+      - 5432:5432
+    volumes:
+      - goqueuedata:/var/lib/postgresql/data/
+    restart: on-failure
+
+  migrate:
+    image: migrate/migrate
+    container_name: db_migrator
+    volumes:
+      - ./migrations:/migrations
+    entrypoint: [
+      "/bin/sh", "-c",
+      "migrate -path=/migrations/ -database postgres://anon:13298@database:5432/go_queue_db?sslmode=disable up"
+    ]
+    depends_on:
+      - database
+
+volumes:
+  goqueuedata:
