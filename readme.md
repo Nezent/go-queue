@@ -17,14 +17,19 @@ GoQueue is a production-ready, event-driven Job Queue system built with **Golang
 ```
 go-queue/
 ├── cmd/
-│   ├── api/                # HTTP server (REST API)
+│   ├── routes/             # Route registration
 │   └── worker/             # Background worker runner
 ├── internal/
-│   ├── domain/             # Job/User models, interfaces
-│   ├── service/            # Job logic (enqueue, execute, retry)
+│   ├── middleware/         # HTTP middleware (auth, logging, recovery)
+│   ├── bootstrap/          # Dependency injection, wire setup
+│   ├── handler/            # HTTP handlers (controllers)
+│   ├── domain/             # Entities, interfaces (core business contracts)
+│   ├── service/            # Business logic / use cases
 │   └── repository/         # PostgreSQL implementations
 ├── migrations/             # SQL files for DB setup
-├── common/                 # Shared utilities (JWT, auth)
+├── common/                 # JWT, password hashing, helper utils
+├── config/                 # Configuration loading (env, files, structs)
+├── .env                    
 ├── Dockerfile
 ├── docker-compose.yml
 ├── go.mod
@@ -79,10 +84,10 @@ This job queue system is designed with **security**, **performance**, and **deve
 - [x] Set up project structure with Hexagonal Architecture
 - [x] Create `users` and `jobs` tables
 - [x] PostgreSQL + pgx
-- [/] Add user authentication:
+- [x] Add user authentication:
   - [x] Signup (`POST /signup`)
-  - [ ] Login (`POST /login`)
-  - [ ] JWT token generation & middleware
+  - [x] Login (`POST /login`)
+  - [x] JWT token generation & middleware
 - [ ] REST API for:
   - [ ] Submit job (auth required)
   - [ ] Get job status (auth required)
@@ -143,7 +148,7 @@ This job queue system is designed with **security**, **performance**, and **deve
 ## 🌐 API Endpoints
 
 ### 🔑 Auth Routes
-- **`POST /api/v1/users`**
+- **`POST /api/v1/auth/register`**
 
   - Description: Register a new user.
   - Request Body:
@@ -167,6 +172,35 @@ This job queue system is designed with **security**, **performance**, and **deve
         "verification_token": "890b1942572ef7d31095db5304dc1910960e118fd08d680b91e9afe9500d414d",
         "last_login_at": "2025-04-22T22:09:55+06:00"
       }
+    }
+    ```
+
+- **`POST /api/v1/auth/login`**
+
+  - Description: Registered user login.
+  - Request Body:
+    ```json
+    {
+      "email": "sirajummunir31@gmail.com",
+      "password": "123456"
+    }
+    ```
+  - Response Body:
+    ```json
+    {
+      "success": true,
+      "message": "Login successful",
+      "data": {
+        "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NDU0MDY5NDksInJvbGUiOiJ1c2VyIiwidXNlcl9pZCI6ImE4NWY5MmU5LTUwYTAtNDlmNy05OTNlLWYwYzE2NmI3MmYwNCJ9.u1yGfSciHw4Q4hzQOrnvzNchJpSUmhR1DFYELFrfUi0"
+      }
+    }
+    ```
+    - JWT Claim:
+    ```json
+    {
+      "exp": 1745406949,
+      "role": "user",
+      "user_id": "a85f92e9-50a0-49f7-993e-f0c166b72f04"
     }
     ```
 

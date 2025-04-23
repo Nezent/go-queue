@@ -27,7 +27,11 @@ type UserResponseDTO struct {
 	LastLoginAt       string    `json:"last_login_at"`
 }
 
-type UserLoginDTO struct {
+type UserLoginRequestDTO struct {
 	Email    string `json:"email"`
 	Password string `json:"password"`
+}
+
+type UserLoginResponseDTO struct {
+	AccessToken string `json:"access_token"`
 }
