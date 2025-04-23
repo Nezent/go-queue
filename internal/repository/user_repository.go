@@ -14,7 +14,7 @@ import (
 
 type UserRepository interface {
 	RegisterUser(context.Context, domain.User) (*domain.User, *common.AppError)
-	// LoginUser(username, password string) (int, error)
+	LoginUser(context.Context, string, string) (*uuid.UUID, *common.AppError)
 	// GetUserByID(userID int) (string, error)
 }
 
@@ -65,6 +65,21 @@ func (ur userRepository) RegisterUser(ctx context.Context, user domain.User) (*d
 	user.LastLoginAt = time.Now().Format(time.RFC3339)
 
 	return &user, nil
+}
+
+func (ur userRepository) LoginUser(ctx context.Context, email, password string) (*uuid.UUID, *common.AppError) {
+	var userID uuid.UUID
+	var passwordHash string
+
+	query := `SELECT id, password_hash FROM users WHERE email = $1`
+	err := ur.db.QueryRow(ctx, query, email).Scan(&userID, &passwordHash)
+	if err != nil {
+		return nil, common.NewUnauthorizedError("Invalid credentials")
+	}
+	if err := common.CompareHashPassword(passwordHash, password); err != nil {
+		return nil, common.NewUnauthorizedError("Invalid credentials")
+	}
+	return &userID, nil
 }
 
 func NewUserRepository(db *pgxpool.Pool) userRepository {

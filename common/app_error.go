@@ -61,6 +61,12 @@ func NewDuplicateError(message string) *AppError {
 		Message:    message,
 	}
 }
+func NewUnauthorizedError(message string) *AppError {
+	return &AppError{
+		StatusCode: http.StatusUnauthorized,
+		Message:    message,
+	}
+}
 
 // Generic wrapper for any error
 func WrapError(statusCode int, message string, err error) *AppError {
