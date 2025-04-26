@@ -15,7 +15,7 @@ import (
 type UserRepository interface {
 	RegisterUser(context.Context, domain.User) (*domain.User, *common.AppError)
 	LoginUser(context.Context, string, string) (*uuid.UUID, *common.AppError)
-	// GetUserByID(userID int) (string, error)
+	VerifyUser(context.Context, string) *common.AppError
 }
 
 type userRepository struct {
@@ -80,6 +80,26 @@ func (ur userRepository) LoginUser(ctx context.Context, email, password string) 
 		return nil, common.NewUnauthorizedError("Invalid credentials")
 	}
 	return &userID, nil
+}
+
+func (r userRepository) VerifyUser(ctx context.Context, token string) *common.AppError {
+	tx, err := middleware.GetTxFromContext(ctx)
+	if err != nil {
+		return common.NewUnexpectedServerError("Transaction context not found", err)
+	}
+	var userID uuid.UUID
+	err = tx.QueryRow(ctx,
+		`SELECT id FROM users WHERE verification_token = $1`, token).
+		Scan(&userID)
+	if err != nil {
+		return common.NewUnexpectedServerError("Failed to verify user", err)
+	}
+	_, err = r.db.Exec(ctx,
+		`UPDATE users SET email_verified = TRUE WHERE id = $1`, userID)
+	if err != nil {
+		return common.NewUnexpectedServerError("Failed to verify user", err)
+	}
+	return nil
 }
 
 func NewUserRepository(db *pgxpool.Pool) userRepository {

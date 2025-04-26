@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/Nezent/go-queue/cmd/routes"
@@ -12,6 +13,8 @@ import (
 	"github.com/Nezent/go-queue/internal/middleware"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/cors"
+	"github.com/hibiken/asynq"
+	"github.com/joho/godotenv"
 )
 
 func main() {
@@ -41,8 +44,18 @@ func main() {
 		MaxAge:           30,
 	}))
 
+	if err := godotenv.Load(".env"); err != nil {
+		log.Println("[INFO] .env file not found, using system environment variables")
+	}
+
+	redisOpt := asynq.RedisClientOpt{
+		Addr: os.Getenv("REDIS_ADDR"),
+	}
+
+	dispatcher := bootstrap.InitializeDispatcher(redisOpt)
+
 	// Dependency injection
-	container := bootstrap.Initialize(db)
+	container := bootstrap.Initialize(db, dispatcher)
 
 	// Register all routes
 	routes.RegisterRoutes(r, container)

@@ -6,20 +6,23 @@ import (
 	"github.com/Nezent/go-queue/common"
 	"github.com/Nezent/go-queue/internal/domain"
 	"github.com/Nezent/go-queue/internal/repository"
+	"github.com/Nezent/go-queue/internal/worker/enqueue"
+	"github.com/Nezent/go-queue/internal/worker/task"
 	"github.com/google/uuid"
 )
 
 type UserService interface {
 	RegisterUser(context.Context, domain.UserRegisterDTO) (*domain.UserResponseDTO, *common.AppError)
 	LoginUser(context.Context, domain.UserLoginRequestDTO) (*uuid.UUID, *common.AppError)
-	// GetUserByID(userID int) (string, error)
+	VerifyUser(context.Context, string) *common.AppError
 }
 type userService struct {
-	repo repository.UserRepository
+	repo       repository.UserRepository
+	dispatcher *enqueue.TaskDispatcher
 }
 
-func NewUserService(repo repository.UserRepository) UserService {
-	return &userService{repo: repo}
+func NewUserService(repo repository.UserRepository, dispatcher *enqueue.TaskDispatcher) UserService {
+	return &userService{repo: repo, dispatcher: dispatcher}
 }
 func (us *userService) RegisterUser(context context.Context, user domain.UserRegisterDTO) (*domain.UserResponseDTO, *common.AppError) {
 	// Validate user data
@@ -43,6 +46,8 @@ func (us *userService) RegisterUser(context context.Context, user domain.UserReg
 	if err != nil {
 		return nil, err
 	}
+	// Send verification email
+	sendVerification(context, userResponse.Email, userResponse.VerificationToken, us.dispatcher)
 	// Convert to response DTO
 	responseDTO := &domain.UserResponseDTO{
 		ID:                userResponse.ID,
@@ -72,4 +77,26 @@ func (us *userService) LoginUser(ctx context.Context, user domain.UserLoginReque
 		return nil, err
 	}
 	return userID, nil
+}
+
+func (us *userService) VerifyUser(ctx context.Context, token string) *common.AppError {
+	// Validate token
+	if token == "" {
+		return common.NewBadRequestError("Token is required")
+	}
+
+	// Verify user
+	err := us.repo.VerifyUser(ctx, token)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func sendVerification(context context.Context, email string, token string, dispatcher *enqueue.TaskDispatcher) {
+
+	_ = dispatcher.EnqueueSendVerificationEmail(context, task.SendVerificationEmailPayload{
+		Email: email,
+		Token: token,
+	})
 }

@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/Nezent/go-queue/internal/bootstrap"
+	"github.com/Nezent/go-queue/internal/handler"
 	"github.com/Nezent/go-queue/internal/middleware"
 	"github.com/go-chi/chi/v5"
 )
@@ -16,6 +17,9 @@ func RegisterRoutes(r chi.Router, c *bootstrap.Container) {
 		api.Route("/auth", func(auth chi.Router) {
 			auth.Post("/login", c.UserHandler.LoginHandler)
 			auth.Post("/register", c.UserHandler.RegisterUser)
+			auth.Post("/logout", handler.LogoutHandler)
+			auth.Get("/verify", c.UserHandler.VerifyUser) // Verify user email
+			// Optional: Uncomment if you have a refresh token endpoint
 			// auth.Post("/refresh", c.UserHandler.RefreshTokenHandler)
 		})
 

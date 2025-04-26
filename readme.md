@@ -195,7 +195,7 @@ This job queue system is designed with **security**, **performance**, and **deve
       }
     }
     ```
-    - JWT Claim:
+  - JWT Claim:
     ```json
     {
       "exp": 1745406949,
