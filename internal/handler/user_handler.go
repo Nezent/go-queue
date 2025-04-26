@@ -74,22 +74,16 @@ func (uh *UserHandler) LoginHandler(w http.ResponseWriter, r *http.Request) {
 
 }
 
-func LogoutHandler() http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		expire := time.Unix(0, 0)
-		cookies := []string{"access_token", "refresh_token"}
-		for _, name := range cookies {
-			http.SetCookie(w, &http.Cookie{
-				Name:     name,
-				Value:    "",
-				Path:     "/",
-				Expires:  expire,
-				MaxAge:   -1,
-				HttpOnly: true,
-				Secure:   true,
-				SameSite: http.SameSiteLaxMode,
-			})
-		}
-		w.WriteHeader(http.StatusOK)
+func (uh *UserHandler) VerifyUser(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	// Parse the request token from the URL
+	token := r.URL.Query().Get("token")
+	// Call the service to verify the user
+	err := uh.Service.VerifyUser(ctx, token)
+	if err != nil {
+		common.RespondJSON(w, http.StatusInternalServerError, common.ErrorResponse(err))
+		return
 	}
+
+	common.RespondJSON(w, http.StatusOK, common.SuccessResponse("User verified successfully", nil))
 }

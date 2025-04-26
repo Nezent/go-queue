@@ -16,6 +16,31 @@ services:
       - go-queue-net
     restart: on-failure
 
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: go-queue-worker
+    command: ./bin/main-worker
+    depends_on:
+      - database
+      - redis
+    environment:
+      - TZ=Asia/Dhaka
+      - WORKER=true 
+    networks:
+      - go-queue-net
+    restart: on-failure
+
+  redis:
+    image: redis:7-alpine
+    container_name: go-queue-redis
+    ports:
+      - 6379:6379
+    networks:
+      - go-queue-net
+    restart: unless-stopped
+
   database:
     image: postgres:15-alpine
     container_name: go-queue-db

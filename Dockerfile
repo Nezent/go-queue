@@ -19,11 +19,12 @@ RUN go mod download
 # Copy source code
 COPY . .
 
-# Build statically linked Go binary
-RUN go build -o bin/main ./cmd/main.go
+# Build statically linked Go binaries for API and worker
+RUN go build -o bin/main ./cmd/main.go && \
+    go build -o bin/main-worker ./cmd/worker/main.go
 
 # Expose application port
 EXPOSE 8080
 
 # Run the binary
-ENTRYPOINT ["./bin/main"]
+CMD ["./bin/main"]
