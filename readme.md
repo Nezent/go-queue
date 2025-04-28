@@ -14,6 +14,10 @@ GoQueue is a production-ready, event-driven Job Queue system built with **Golang
 
 ![Hexagonal Architecture](./hexagonal_architecture.webp)
 
+## 📦 Worker Structure
+
+![Worker Structure](./flow_chart.png)
+
 ```
 go-queue/
 ├── cmd/
@@ -70,8 +74,8 @@ This job queue system is designed with **security**, **performance**, and **deve
 
 ### 📊 Developer & DevOps Friendly
 - Modular code structure using **Go + PostgreSQL**
-- RESTful API built with **Fiber** or **Chi**
-- Uses **pgx** or **SQLx** for database layer
+- RESTful API built with **Chi**
+- Uses **pgx** for database layer
 - Dockerized for easy local dev and deployment
 - Can be deployed to **GCP**, **Fly.io**, etc.
 
@@ -88,8 +92,8 @@ This job queue system is designed with **security**, **performance**, and **deve
   - [x] Signup (`POST /signup`)
   - [x] Login (`POST /login`)
   - [x] JWT token generation & middleware
-- [ ] REST API for:
-  - [ ] Submit job (auth required)
+- [x] REST API for:
+  - [x] Submit job (auth required)
   - [ ] Get job status (auth required)
 - [x] Docker + Compose setup
 
@@ -97,7 +101,7 @@ This job queue system is designed with **security**, **performance**, and **deve
 
 ### ✅ Phase 2: Worker System – Background Task Execution
 
-- [ ] Goroutine-based worker
+- [x] Goroutine-based worker
 - [ ] Poll for pending jobs
 - [ ] Execute job logic (mocked at first)
 - [ ] Retry with backoff
@@ -204,11 +208,53 @@ This job queue system is designed with **security**, **performance**, and **deve
     }
     ```
 
+
+
 ### 📦 Job Routes (require JWT)
-- `POST /jobs` – Submit a new job (auth required)
-- `GET /jobs/:id` – View job (only if you own it)
+
+- **`POST /api/v1/jobs`**
+
+  - Description: Create a new job.
+  - Request Body:
+    ```json
+    {
+      "user_id": "58654e8d-21e6-41c6-9765-d132c52864c5",
+      "type": "email",
+      "payload": {
+        "subject": "Welcome Email Check 2",
+        "body": "Welcome to our platform!",
+        "recipient": "user@example.com"
+      },
+      "priority": "high",
+      "run_at": "2025-04-30T10:00:00Z"
+    }
+    ```
+  - Response Body:
+    ```json
+    {
+      "success": true,
+      "message": "Job created successfully",
+      "data": {
+        "id": "0d883428-ba88-4780-afaa-d69ef7596221",
+        "user_id": "58654e8d-21e6-41c6-9765-d132c52864c5",
+        "type": "email",
+        "payload": {
+          "body": "Welcome to our platform!",
+          "recipient": "user@example.com",
+          "subject": "Welcome Email Check 2"
+        },
+        "status": "pending",
+        "priority": "high",
+        "attempts": 0,
+        "run_at": "2025-04-30T10:00:00Z",
+        "created_at": "2025-04-28T10:28:02+06:00",
+        "updated_at": "2025-04-28T10:28:02+06:00"
+      }
+    }
+    ```
+<!-- - `GET /jobs/:id` – View job (only if you own it)
 - `GET /jobs` – List your jobs (by status, priority)
-- `POST /jobs/:id/retry` – Retry failed job
+- `POST /jobs/:id/retry` – Retry failed job -->
 
 ### 📡 Real-Time
 - `WS /ws/jobs` – Connect with JWT, get updates
@@ -246,7 +292,6 @@ This job queue system is designed with **security**, **performance**, and **deve
 - [JWT Authentication in Go](https://dev.to/macisamuele/jwt-authentication-in-go-1j7h)
 - [Hexagonal Architecture in Go](https://medium.com/@matryer/structuring-go-applications-clean-architecture-ef7d7c6fcd26)
 - [Go Channels and Workers](https://gobyexample.com/worker-pools)
-- [Job Queues in Postgres](https://www.crunchydata.com/blog/building-a-job-queue-with-postgresql)
 
 ---
 
