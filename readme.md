@@ -218,7 +218,6 @@ This job queue system is designed with **security**, **performance**, and **deve
   - Request Body:
     ```json
     {
-      "user_id": "58654e8d-21e6-41c6-9765-d132c52864c5",
       "type": "email",
       "payload": {
         "subject": "Welcome Email Check 2",
