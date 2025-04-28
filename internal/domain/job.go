@@ -18,7 +18,6 @@ type Job struct {
 }
 
 type JobCreateRequestDTO struct {
-	UserID   uuid.UUID      `json:"user_id"`
 	Type     string         `json:"type"`
 	Payload  map[string]any `json:"payload"`
 	Priority string         `json:"priority"`

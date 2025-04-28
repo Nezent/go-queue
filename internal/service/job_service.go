@@ -5,6 +5,7 @@ import (
 
 	"github.com/Nezent/go-queue/common"
 	"github.com/Nezent/go-queue/internal/domain"
+	"github.com/Nezent/go-queue/internal/middleware"
 	"github.com/Nezent/go-queue/internal/repository"
 	"github.com/google/uuid"
 )
@@ -30,12 +31,18 @@ func (js *jobService) CreateJob(ctx context.Context, job domain.JobCreateRequest
 	if job.Type == "" {
 		return nil, common.NewBadRequestError("Job type is required")
 	}
-	if job.UserID == uuid.Nil {
-		return nil, common.NewBadRequestError("User ID is required")
+	userID, ok := middleware.GetUserID(ctx)
+	if !ok {
+		return nil, common.NewUnauthorizedError("User ID not found in context")
+	}
+
+	parsedUserID, err := uuid.Parse(userID)
+	if err != nil {
+		return nil, common.NewBadRequestError("Invalid User ID format")
 	}
 
 	jobEntity := domain.Job{
-		UserID:   job.UserID,
+		UserID:   parsedUserID,
 		Type:     job.Type,
 		Payload:  job.Payload,
 		Priority: job.Priority,
