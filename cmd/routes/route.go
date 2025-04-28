@@ -46,12 +46,12 @@ func RegisterRoutes(r chi.Router, c *bootstrap.Container) {
 
 		// 💼 Job Routes (Protected)
 		api.Route("/jobs", func(jobs chi.Router) {
-			jobs.Use(middleware.AuthMiddleware)
+			// jobs.Use(middleware.AuthMiddleware)
 
 			// Optional: jobs.Use(middleware.RequireRole("admin", "hr"))
 
 			// jobs.Get("/", c.JobHandler.GetJobs)
-			// jobs.Post("/", c.JobHandler.CreateJob)
+			jobs.Post("/", c.JobHandler.CreateJob)
 			// jobs.Get("/{job_id}", c.JobHandler.GetJobById)
 		})
 

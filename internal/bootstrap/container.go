@@ -11,6 +11,7 @@ import (
 
 type Container struct {
 	UserHandler    handler.UserHandler
+	JobHandler     handler.JobHandler
 	TaskDispatcher *enqueue.TaskDispatcher
 }
 
@@ -21,6 +22,9 @@ func Initialize(db *pgxpool.Pool, dispatcher *enqueue.TaskDispatcher) *Container
 			Service: service.NewUserService(repository.NewUserRepository(db), dispatcher),
 		},
 		TaskDispatcher: dispatcher,
+		JobHandler: handler.JobHandler{
+			Service: service.NewJobService(repository.NewJobRepository(db)),
+		},
 		// other handlers...
 	}
 }

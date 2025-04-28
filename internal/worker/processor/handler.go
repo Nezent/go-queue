@@ -35,7 +35,7 @@ func (p *TaskProcessor) HandleSendVerificationEmail(ctx context.Context, t *asyn
 		return fmt.Errorf("json.Unmarshal failed: %w", err)
 	}
 
-	from := mail.Address{Name: "Sirajum Munir", Address: p.From}
+	from := mail.Address{Name: "Go Queue", Address: p.From}
 	to := mail.Address{Address: payload.Email}
 
 	headers := make(map[string]string)
