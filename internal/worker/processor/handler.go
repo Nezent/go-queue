@@ -61,3 +61,35 @@ func (p *TaskProcessor) HandleSendVerificationEmail(ctx context.Context, t *asyn
 		[]byte(message),
 	)
 }
+
+func (p *TaskProcessor) HandleSendJobEmail(ctx context.Context, t *asynq.Task) error {
+	var payload task.EmailPayload
+	if err := json.Unmarshal(t.Payload(), &payload); err != nil {
+		return fmt.Errorf("json.Unmarshal failed: %w", err)
+	}
+
+	from := mail.Address{Name: "Go Queue", Address: p.From}
+	to := mail.Address{Address: payload.Recipient}
+
+	headers := make(map[string]string)
+	headers["From"] = from.String()
+	headers["To"] = to.String()
+	headers["Subject"] = payload.Subject
+
+	// Build the message
+	message := ""
+	for k, v := range headers {
+		message += fmt.Sprintf("%s: %s\r\n", k, v)
+	}
+	message += "\r\n" + fmt.Sprintf(
+		payload.Body,
+	)
+
+	return smtp.SendMail(
+		p.SMTPHost+":"+p.SMTPPort,
+		p.Auth,
+		p.From,               // still needs to be plain email address
+		[]string{to.Address}, // list of recipient emails
+		[]byte(message),
+	)
+}

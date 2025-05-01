@@ -23,3 +23,11 @@ type JobCreateRequestDTO struct {
 	Priority string         `json:"priority"`
 	RunAt    string         `json:"run_at"`
 }
+
+type JobStatusResponseDTO struct {
+	Type     string `json:"type"`
+	Status   string `json:"status"`
+	Priority string `json:"priority"`
+	Attempts int    `json:"attempts"`
+	RunAt    string `json:"run_at"`
+}

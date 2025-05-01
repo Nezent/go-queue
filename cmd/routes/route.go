@@ -1,12 +1,12 @@
 package routes
 
 import (
-	"encoding/json"
 	"net/http"
 
 	"github.com/Nezent/go-queue/internal/bootstrap"
 	"github.com/Nezent/go-queue/internal/handler"
 	"github.com/Nezent/go-queue/internal/middleware"
+	"github.com/Nezent/go-queue/internal/websocket"
 	"github.com/go-chi/chi/v5"
 )
 
@@ -26,16 +26,6 @@ func RegisterRoutes(r chi.Router, c *bootstrap.Container) {
 		// 👤 User Routes (Protected)
 		api.Route("/users", func(users chi.Router) {
 			users.Use(middleware.AuthMiddleware)
-			users.Get("/me", func(w http.ResponseWriter, r *http.Request) {
-				response := map[string]string{
-					"username": "test",
-					"email":    "testmail@example.com",
-					"role":     "user",
-				}
-				w.Header().Set("Content-Type", "application/json")
-				w.WriteHeader(http.StatusOK)
-				json.NewEncoder(w).Encode(response)
-			})
 
 			// Add optional role-based access
 			// users.Use(middleware.RequireRole("admin"))
@@ -52,9 +42,16 @@ func RegisterRoutes(r chi.Router, c *bootstrap.Container) {
 
 			// jobs.Get("/", c.JobHandler.GetJobs)
 			jobs.Post("/", c.JobHandler.CreateJob)
-			// jobs.Get("/{job_id}", c.JobHandler.GetJobById)
+			jobs.Get("/{job_id}", c.JobHandler.GetJobStatus)
 		})
 
+		// 📦 WebSocket Routes
+		api.Route("/ws", func(ws chi.Router) {
+			ws.Use(middleware.AuthMiddleware)
+			ws.Get("/jobs", func(w http.ResponseWriter, r *http.Request) {
+				websocket.HandleWebSocket(c.WebSocketHub, w, r)
+			})
+		})
 		// ✅ Add more domain-specific groups below (example: /tasks, /reports, /analytics)
 	})
 }

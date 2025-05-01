@@ -24,6 +24,8 @@ go-queue/
 │   ├── routes/             # Route registration
 │   └── worker/             # Background worker runner
 ├── internal/
+│   ├── websocket/          # WebSocket connection handler
+│   ├── worker/             # Worker pool, job processing
 │   ├── middleware/         # HTTP middleware (auth, logging, recovery)
 │   ├── bootstrap/          # Dependency injection, wire setup
 │   ├── handler/            # HTTP handlers (controllers)
@@ -94,7 +96,7 @@ This job queue system is designed with **security**, **performance**, and **deve
   - [x] JWT token generation & middleware
 - [x] REST API for:
   - [x] Submit job (auth required)
-  - [ ] Get job status (auth required)
+  - [x] Get job status (auth required)
 - [x] Docker + Compose setup
 
 ---
@@ -102,8 +104,8 @@ This job queue system is designed with **security**, **performance**, and **deve
 ### ✅ Phase 2: Worker System – Background Task Execution
 
 - [x] Goroutine-based worker
-- [ ] Poll for pending jobs
-- [ ] Execute job logic (mocked at first)
+- [x] Poll for pending jobs
+- [x] Execute job logic (mocked at first)
 - [ ] Retry with backoff
 - [ ] Log output & mark as completed/failed
 
@@ -129,7 +131,7 @@ This job queue system is designed with **security**, **performance**, and **deve
 ### ✅ Phase 5: WebSocket Notifications (Advanced)
 
 - [ ] Notify logged-in users in real-time when their job completes
-- [ ] WebSocket connection with JWT auth
+- [x] WebSocket connection with JWT auth
 - [ ] Frontend toast/alert when status updates
 
 ---
@@ -256,7 +258,17 @@ This job queue system is designed with **security**, **performance**, and **deve
 - `POST /jobs/:id/retry` – Retry failed job -->
 
 ### 📡 Real-Time
-- `WS /ws/jobs` – Connect with JWT, get updates
+- **`WS /ws/jobs`** 
+  – Connect with JWT, get updates
+  - Description: WebSocket connection for real-time job updates.
+  - Response:
+    ```json
+    {
+      "job_id": "0d883428-ba88-4780-afaa-d69ef7596221",
+      "job_type": "email",
+      "status": "completed"
+    }
+    ```
 
 ---
 
@@ -267,7 +279,7 @@ This job queue system is designed with **security**, **performance**, and **deve
 - 🔐 **Authentication:** JWT + bcrypt  
 - 🌐 **API Framework:** Chi  
 - 🛢️ **DB Layer:** pgx  
-- 🧵 **Background Tasks:** Goroutines  
+- 🧵 **Background Tasks:** Asynq  
 - 🐳 **DevOps & Containerization:** Docker  
 - ⚡ **Realtime Communication:** WebSocket  
 - ☁️ **Deployment:** Github
