@@ -15,7 +15,7 @@ type JobService interface {
 	// CreateJob creates a new job in the database.
 	CreateJob(context.Context, domain.JobCreateRequestDTO) (*domain.Job, *common.AppError)
 	// GetJobPayload retrieves a job payload by its ID.
-	GetJobPayload(context.Context, uuid.UUID) (*task.EmailPayload, *common.AppError)
+	GetJobPayload(context.Context, uuid.UUID) (*task.JobPayload, *common.AppError)
 	// UpdateJobStatus updates an existing job status in the database.
 	UpdateJobStatus(context.Context, uuid.UUID) (*domain.Job, *common.AppError)
 	// GetJobStatus retrieves the status of a job by its ID.
@@ -72,7 +72,7 @@ func (js *jobService) GetJobStatus(ctx context.Context, jobID uuid.UUID) (*domai
 	return job, nil
 }
 
-func (js *jobService) GetJobPayload(ctx context.Context, jobID uuid.UUID) (*task.EmailPayload, *common.AppError) {
+func (js *jobService) GetJobPayload(ctx context.Context, jobID uuid.UUID) (*task.JobPayload, *common.AppError) {
 	// Retrieve job payload from the repository
 	payload, appErr := js.jobRepo.GetJobPayload(ctx, jobID)
 	if appErr != nil {

@@ -62,7 +62,9 @@ func main() {
 	go hub.Run()
 
 	// Initialize the Listeners
-	go worker.StartPgListener(ctx, "job_updates", db, dispatcher, container)
+	go worker.StartPgListener(ctx, "job_updates", db, container)
+
+	worker.InitJobQueue(ctx, dispatcher, container)
 
 	// Register all routes
 	routes.RegisterRoutes(r, container)

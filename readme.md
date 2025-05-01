@@ -94,7 +94,7 @@ This job queue system is designed with **security**, **performance**, and **deve
   - [x] Signup (`POST /signup`)
   - [x] Login (`POST /login`)
   - [x] JWT token generation & middleware
-- [x] REST API for:
+- [x] REST API for Job:
   - [x] Submit job (auth required)
   - [x] Get job status (auth required)
 - [x] Docker + Compose setup
@@ -106,16 +106,16 @@ This job queue system is designed with **security**, **performance**, and **deve
 - [x] Goroutine-based worker
 - [x] Poll for pending jobs
 - [x] Execute job logic (mocked at first)
-- [ ] Retry with backoff
-- [ ] Log output & mark as completed/failed
+- [x] Retry with backoff
+- [x] Log output & mark as completed/failed
 
 ---
 
 ### ✅ Phase 3: Scheduling + Priority Queue
 
-- [ ] `run_at` timestamp support
-- [ ] `priority` field (`high`, `medium`, `low`)
-- [ ] Queue sorted by run_at + priority
+- [x] `run_at` timestamp support
+- [x] `priority` field (`high`, `medium`, `low`)
+- [x] Queue sorted by run_at + priority
 
 ---
 
@@ -130,7 +130,7 @@ This job queue system is designed with **security**, **performance**, and **deve
 
 ### ✅ Phase 5: WebSocket Notifications (Advanced)
 
-- [ ] Notify logged-in users in real-time when their job completes
+- [x] Notify logged-in users in real-time when their job completes
 - [x] WebSocket connection with JWT auth
 - [ ] Frontend toast/alert when status updates
 
@@ -139,9 +139,9 @@ This job queue system is designed with **security**, **performance**, and **deve
 ### ✅ Phase 6: Advanced Concepts
 
 - [ ] Dead Letter Queue (failed jobs after N retries)
-- [ ] Graceful shutdown with context & signals
+- [x] Graceful shutdown with context & signals
 - [ ] Redis cache or pub/sub (optional)
-- [ ] Deploy to GCP or any cloud
+- [ ] Deploy to any cloud
 - [ ] CI/CD (GitHub Actions)
 
 ---
