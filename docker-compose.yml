@@ -1,0 +1,89 @@
+services:
+  client:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: go-queue
+    ports:
+      - 8080:8080
+    volumes:
+      - .:/usr/src/app # Use bind mount only in development
+    environment:
+      - TZ=Asia/Dhaka
+    depends_on:
+      - database
+    networks:
+      - go-queue-net
+    restart: on-failure
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: go-queue-worker
+    command: ./bin/main-worker
+    depends_on:
+      - database
+      - redis
+    environment:
+      - TZ=Asia/Dhaka
+      - WORKER=true 
+    networks:
+      - go-queue-net
+    restart: on-failure
+
+  redis:
+    image: redis:7-alpine
+    container_name: go-queue-redis
+    ports:
+      - 6379:6379
+    networks:
+      - go-queue-net
+    restart: unless-stopped
+
+  database:
+    image: postgres:15-alpine
+    container_name: go-queue-db
+    env_file:
+      - .env
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+      TZ: Asia/Dhaka
+    ports:
+      - 5432:5432
+    volumes:
+      - goqueuedata:/var/lib/postgresql/data
+    networks:
+      - go-queue-net
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  migrate:
+    image: migrate/migrate
+    container_name: db_migrator
+    volumes:
+      - ./migrations:/migrations
+    entrypoint: >
+      /bin/sh -c "
+      echo '🚀 Running migrations...';
+      migrate -path=/migrations/ -database postgres://${DB_USER}:${DB_PASSWORD}@database:5432/${DB_NAME}?sslmode=disable up;
+      "
+    depends_on:
+      database:
+        condition: service_healthy
+    networks:
+      - go-queue-net
+    restart: on-failure
+
+volumes:
+  goqueuedata:
+
+networks:
+  go-queue-net:
+    driver: bridge

@@ -14,17 +14,28 @@ GoQueue is a production-ready, event-driven Job Queue system built with **Golang
 
 ![Hexagonal Architecture](./hexagonal_architecture.webp)
 
+## 📦 Worker Structure
+
+![Worker Structure](./flow_chart.png)
+
 ```
 go-queue/
 ├── cmd/
-│   ├── api/                # HTTP server (REST API)
+│   ├── routes/             # Route registration
 │   └── worker/             # Background worker runner
 ├── internal/
-│   ├── domain/             # Job/User models, interfaces
-│   ├── service/            # Job logic (enqueue, execute, retry)
+│   ├── websocket/          # WebSocket connection handler
+│   ├── worker/             # Worker pool, job processing
+│   ├── middleware/         # HTTP middleware (auth, logging, recovery)
+│   ├── bootstrap/          # Dependency injection, wire setup
+│   ├── handler/            # HTTP handlers (controllers)
+│   ├── domain/             # Entities, interfaces (core business contracts)
+│   ├── service/            # Business logic / use cases
 │   └── repository/         # PostgreSQL implementations
 ├── migrations/             # SQL files for DB setup
-├── common/                 # Shared utilities (JWT, auth)
+├── common/                 # JWT, password hashing, helper utils
+├── config/                 # Configuration loading (env, files, structs)
+├── .env                    
 ├── Dockerfile
 ├── docker-compose.yml
 ├── go.mod
@@ -33,7 +44,7 @@ go-queue/
 
 ---
 
-## 🎯 Application Features Overview
+## 🌟 Application Features Overview
 
 This job queue system is designed with **security**, **performance**, and **developer-friendliness** in mind. Below is a summary of what it offers:
 
@@ -65,46 +76,77 @@ This job queue system is designed with **security**, **performance**, and **deve
 
 ### 📊 Developer & DevOps Friendly
 - Modular code structure using **Go + PostgreSQL**
-- RESTful API built with **Fiber** or **Chi**
-- Uses **pgx** or **SQLx** for database layer
+- RESTful API built with **Chi**
+- Uses **pgx** for database layer
 - Dockerized for easy local dev and deployment
 - Can be deployed to **GCP**, **Fly.io**, etc.
 
 ---
 
-## 🚦 Roadmap & Learning Milestones
+## ⚖️ Priority Queue Implementation
+
+To ensure **efficient job processing**, GoQueue uses a **priority-aware scheduling algorithm**. Jobs are stored with a `priority` field (`high`, `medium`, `low`) and a `run_at` timestamp.
+
+### ▶️ How It Works:
+- The worker polls jobs using this SQL logic:
+
+```sql
+SELECT * FROM jobs
+WHERE status = 'pending' AND run_at <= NOW()
+ORDER BY 
+  CASE priority
+    WHEN 'high' THEN 1
+    WHEN 'medium' THEN 2
+    WHEN 'low' THEN 3
+  END,
+  run_at ASC
+LIMIT 1
+FOR UPDATE SKIP LOCKED;
+```
+
+- This ensures high-priority and overdue jobs are processed **first**, improving performance and responsiveness for time-sensitive tasks.
+- Each worker instance fetches and locks jobs to avoid duplication.
+- Combined with retry logic and WebSocket updates, the system remains robust under load.
+
+### 📈 Priority Queue Flow
+
+![Priority Queue Flow](./queue_flow.png)
+
+---
+
+## ✅ Roadmap & Learning Milestones
 
 ### ✅ Phase 1: Foundation – REST API + PostgreSQL + Auth
 
 - [x] Set up project structure with Hexagonal Architecture
-- [ ] Create `users` and `jobs` tables
-- [ ] PostgreSQL + pgx
-- [ ] Add user authentication:
-  - [ ] Signup (`POST /signup`)
-  - [ ] Login (`POST /login`)
-  - [ ] JWT token generation & middleware
-- [ ] REST API for:
-  - [ ] Submit job (auth required)
-  - [ ] Get job status (auth required)
-- [ ] Docker + Compose setup
+- [x] Create `users` and `jobs` tables
+- [x] PostgreSQL + pgx
+- [x] Add user authentication:
+  - [x] Signup (`POST /signup`)
+  - [x] Login (`POST /login`)
+  - [x] JWT token generation & middleware
+- [x] REST API for Job:
+  - [x] Submit job (auth required)
+  - [x] Get job status (auth required)
+- [x] Docker + Compose setup
 
 ---
 
 ### ✅ Phase 2: Worker System – Background Task Execution
 
-- [ ] Goroutine-based worker
-- [ ] Poll for pending jobs
-- [ ] Execute job logic (mocked at first)
-- [ ] Retry with backoff
-- [ ] Log output & mark as completed/failed
+- [x] Goroutine-based worker
+- [x] Poll for pending jobs
+- [x] Execute job logic (mocked at first)
+- [x] Retry with backoff
+- [x] Log output & mark as completed/failed
 
 ---
 
 ### ✅ Phase 3: Scheduling + Priority Queue
 
-- [ ] `run_at` timestamp support
-- [ ] `priority` field (`high`, `medium`, `low`)
-- [ ] Queue sorted by run_at + priority
+- [x] `run_at` timestamp support
+- [x] `priority` field (`high`, `medium`, `low`)
+- [x] Queue sorted by run_at + priority
 
 ---
 
@@ -119,8 +161,8 @@ This job queue system is designed with **security**, **performance**, and **deve
 
 ### ✅ Phase 5: WebSocket Notifications (Advanced)
 
-- [ ] Notify logged-in users in real-time when their job completes
-- [ ] WebSocket connection with JWT auth
+- [x] Notify logged-in users in real-time when their job completes
+- [x] WebSocket connection with JWT auth
 - [ ] Frontend toast/alert when status updates
 
 ---
@@ -128,9 +170,9 @@ This job queue system is designed with **security**, **performance**, and **deve
 ### ✅ Phase 6: Advanced Concepts
 
 - [ ] Dead Letter Queue (failed jobs after N retries)
-- [ ] Graceful shutdown with context & signals
+- [x] Graceful shutdown with context & signals
 - [ ] Redis cache or pub/sub (optional)
-- [ ] Deploy to GCP or any cloud
+- [ ] Deploy to any cloud
 - [ ] CI/CD (GitHub Actions)
 
 ---
@@ -143,28 +185,119 @@ This job queue system is designed with **security**, **performance**, and **deve
 ## 🌐 API Endpoints
 
 ### 🔑 Auth Routes
-- `POST /signup` – Register new user
-- `POST /login` – Authenticate and get token
+- **`POST /api/v1/auth/register`**
+
+  - Description: Register a new user.
+  - Request Body:
+    ```json
+    {
+      "name": "Sirajum Munir",
+      "email": "sirajummunir31@gmail.com",
+      "password": "123456"
+    }
+    ```
+  - Response Body:
+    ```json
+    {
+      "success": true,
+      "message": "User registered successfully",
+      "data": {
+        "id": "a85f92e9-50a0-49f7-993e-f0c166b72f04",
+        "name": "Sirajum Munir",
+        "email": "sirajummunir31@gmail.com",
+        "email_verified": false,
+        "verification_token": "...",
+        "last_login_at": "2025-04-22T22:09:55+06:00"
+      }
+    }
+    ```
+
+- **`POST /api/v1/auth/login`**
+
+  - Description: Registered user login.
+  - Request Body:
+    ```json
+    {
+      "email": "sirajummunir31@gmail.com",
+      "password": "123456"
+    }
+    ```
+  - Response Body:
+    ```json
+    {
+      "success": true,
+      "message": "Login successful",
+      "data": {
+        "access_token": "<JWT_TOKEN>"
+      }
+    }
+    ```
 
 ### 📦 Job Routes (require JWT)
-- `POST /jobs` – Submit a new job (auth required)
-- `GET /jobs/:id` – View job (only if you own it)
-- `GET /jobs` – List your jobs (by status, priority)
-- `POST /jobs/:id/retry` – Retry failed job
+
+- **`POST /api/v1/jobs`**
+
+  - Description: Create a new job.
+  - Request Body:
+    ```json
+    {
+      "type": "email",
+      "payload": {
+        "subject": "Welcome Email Check 2",
+        "body": "Welcome to our platform!",
+        "recipient": "user@example.com"
+      },
+      "priority": "high",
+      "run_at": "2025-04-30T10:00:00Z"
+    }
+    ```
+  - Response Body:
+    ```json
+    {
+      "success": true,
+      "message": "Job created successfully",
+      "data": {
+        "id": "...",
+        "user_id": "...",
+        "type": "email",
+        "payload": {
+          "body": "Welcome to our platform!",
+          "recipient": "user@example.com",
+          "subject": "Welcome Email Check 2"
+        },
+        "status": "pending",
+        "priority": "high",
+        "attempts": 0,
+        "run_at": "2025-04-30T10:00:00Z",
+        "created_at": "...",
+        "updated_at": "..."
+      }
+    }
+    ```
 
 ### 📡 Real-Time
-- `WS /ws/jobs` – Connect with JWT, get updates
+- **`WS /ws/jobs`** 
+  – Connect with JWT, get updates
+  - Description: WebSocket connection for real-time job updates.
+  - Response:
+    ```json
+    {
+      "job_id": "...",
+      "job_type": "email",
+      "status": "completed"
+    }
+    ```
 
 ---
 
 ## 🚀 Tech Stack
 
 - 🧠 **Language:** Go (Golang)  
-- 🗄️ **Database:** PostgreSQL  
+- 💄 **Database:** PostgreSQL  
 - 🔐 **Authentication:** JWT + bcrypt  
 - 🌐 **API Framework:** Chi  
-- 🛢️ **DB Layer:** pgx  
-- 🧵 **Background Tasks:** Goroutines  
+- 📂 **DB Layer:** pgx  
+- 🧵 **Background Tasks:** Asynq  
 - 🐳 **DevOps & Containerization:** Docker  
 - ⚡ **Realtime Communication:** WebSocket  
 - ☁️ **Deployment:** Github
@@ -188,12 +321,9 @@ This job queue system is designed with **security**, **performance**, and **deve
 - [JWT Authentication in Go](https://dev.to/macisamuele/jwt-authentication-in-go-1j7h)
 - [Hexagonal Architecture in Go](https://medium.com/@matryer/structuring-go-applications-clean-architecture-ef7d7c6fcd26)
 - [Go Channels and Workers](https://gobyexample.com/worker-pools)
-- [Job Queues in Postgres](https://www.crunchydata.com/blog/building-a-job-queue-with-postgresql)
 
 ---
 
 ## 🤝 Contributors
 
 Made with ❤️ by Sirajum Munir (Nezent)
-
-
