@@ -47,3 +47,26 @@ func (jh *JobHandler) GetJobPayload(ctx context.Context, jobID uuid.UUID) (*task
 	}
 	return jobPayload, nil
 }
+
+func (jh *JobHandler) GetJobStatus(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	jobIDStr := r.URL.Query().Get("job_id")
+	if jobIDStr == "" {
+		common.RespondJSON(w, http.StatusBadRequest, common.ErrorResponse("Job ID is required"))
+		return
+	}
+
+	jobID, err := uuid.Parse(jobIDStr)
+	if err != nil {
+		common.RespondJSON(w, http.StatusBadRequest, common.ErrorResponse("Invalid Job ID format"))
+		return
+	}
+
+	jobStatus, appErr := jh.Service.GetJobStatus(ctx, jobID)
+	if appErr != nil {
+		common.RespondJSON(w, http.StatusInternalServerError, common.ErrorResponse(appErr))
+		return
+	}
+
+	common.RespondJSON(w, http.StatusOK, common.SuccessResponse("Job status retrieved successfully", jobStatus))
+}

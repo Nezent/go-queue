@@ -19,11 +19,8 @@ type JobRepository interface {
 	GetJobPayload(context.Context, uuid.UUID) (*task.EmailPayload, *common.AppError)
 	// // UpdateJobStatus updates an existing job status in the database.
 	UpdateJobStatus(context.Context, uuid.UUID) (*domain.Job, *common.AppError)
-	// // DeleteJob deletes a job from the database.
-	// DeleteJob(ctx context.Context, jobID uuid.UUID) *common.AppError
-	// // ListJobs retrieves a list of jobs with pagination.
-	// ListJobs(ctx context.Context, page, limit int) ([]domain.Job, *common.AppError)
-
+	// GetJobStatus retrieves the status of a job by its ID.
+	GetJobStatus(context.Context, uuid.UUID) (*domain.JobStatusResponseDTO, *common.AppError)
 }
 type jobRepository struct {
 	db *pgxpool.Pool
@@ -90,6 +87,20 @@ func (jr jobRepository) UpdateJobStatus(ctx context.Context, jobID uuid.UUID) (*
 		return nil, common.NewUnexpectedServerError("Failed to update job status", err)
 	}
 	job.UpdatedAt = time.Now().Format(time.RFC3339)
+	return &job, nil
+}
+
+func (jr jobRepository) GetJobStatus(ctx context.Context, jobID uuid.UUID) (*domain.JobStatusResponseDTO, *common.AppError) {
+	// Retrieve job status from database
+	query := `
+		SELECT type, status, priority, attempts, run_at
+		FROM jobs WHERE id = $1
+	`
+	job := domain.JobStatusResponseDTO{}
+	err := jr.db.QueryRow(ctx, query, jobID).Scan(&job.Type, &job.Status, &job.Priority, &job.Attempts, &job.RunAt)
+	if err != nil {
+		return nil, common.NewUnexpectedServerError("Failed to retrieve job status", err)
+	}
 	return &job, nil
 }
 

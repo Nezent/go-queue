@@ -18,6 +18,8 @@ type JobService interface {
 	GetJobPayload(context.Context, uuid.UUID) (*task.EmailPayload, *common.AppError)
 	// UpdateJobStatus updates an existing job status in the database.
 	UpdateJobStatus(context.Context, uuid.UUID) (*domain.Job, *common.AppError)
+	// GetJobStatus retrieves the status of a job by its ID.
+	GetJobStatus(context.Context, uuid.UUID) (*domain.JobStatusResponseDTO, *common.AppError)
 }
 
 type jobService struct {
@@ -54,6 +56,20 @@ func (js *jobService) CreateJob(ctx context.Context, job domain.JobCreateRequest
 	}
 
 	return createdJob, nil
+}
+
+func (js *jobService) GetJobStatus(ctx context.Context, jobID uuid.UUID) (*domain.JobStatusResponseDTO, *common.AppError) {
+	// Retrieve job status from the repository
+	job, appErr := js.jobRepo.GetJobStatus(ctx, jobID)
+	if appErr != nil {
+		return nil, appErr
+	}
+
+	if job == nil {
+		return nil, common.NewNotFoundError("Job not found")
+	}
+
+	return job, nil
 }
 
 func (js *jobService) GetJobPayload(ctx context.Context, jobID uuid.UUID) (*task.EmailPayload, *common.AppError) {

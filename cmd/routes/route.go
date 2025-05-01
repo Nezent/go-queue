@@ -42,7 +42,7 @@ func RegisterRoutes(r chi.Router, c *bootstrap.Container) {
 
 			// jobs.Get("/", c.JobHandler.GetJobs)
 			jobs.Post("/", c.JobHandler.CreateJob)
-			// jobs.Get("/{job_id}", c.JobHandler.GetJobById)
+			jobs.Get("/{job_id}", c.JobHandler.GetJobStatus)
 		})
 
 		// 📦 WebSocket Routes
