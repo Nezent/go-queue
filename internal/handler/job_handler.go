@@ -34,16 +34,13 @@ func (jh *JobHandler) CreateJob(w http.ResponseWriter, r *http.Request) {
 	common.RespondJSON(w, http.StatusOK, common.SuccessResponse("Job created successfully", jobResponse))
 }
 
-func (jh *JobHandler) GetJobPayload(ctx context.Context, jobID uuid.UUID) (*task.EmailPayload, error) {
+func (jh *JobHandler) GetJobPayload(ctx context.Context, jobID uuid.UUID) (*task.JobPayload, error) {
 	if jobID == uuid.Nil {
 		return nil, errors.New("invalid job id")
 	}
 	jobPayload, err := jh.Service.GetJobPayload(ctx, jobID)
 	if err != nil {
 		return nil, err
-	}
-	if jobPayload == nil {
-		return nil, errors.New("job payload not found")
 	}
 	return jobPayload, nil
 }

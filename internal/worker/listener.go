@@ -1,21 +1,18 @@
 package worker
 
 import (
+	"container/heap"
 	"context"
-	"encoding/json"
 	"log"
 
 	"github.com/Nezent/go-queue/internal/bootstrap"
-	"github.com/Nezent/go-queue/internal/worker/enqueue"
-	"github.com/Nezent/go-queue/internal/worker/task"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-func StartPgListener(ctx context.Context, channel string, pool *pgxpool.Pool, dispatcher *enqueue.TaskDispatcher, c *bootstrap.Container) {
+func StartPgListener(ctx context.Context, channel string, pool *pgxpool.Pool, c *bootstrap.Container) {
 	conn, _ := pool.Acquire(ctx)
 	defer conn.Release()
-	// Listen to the specified channel
 	_, err := conn.Exec(ctx, `LISTEN `+channel)
 	if err != nil {
 		log.Fatal("[LISTENER] LISTEN failed:", err)
@@ -37,41 +34,33 @@ func StartPgListener(ctx context.Context, channel string, pool *pgxpool.Pool, di
 			continue
 		}
 
-		emailPayload, err := c.JobHandler.GetJobPayload(ctx, jobID)
+		jobPayload, err := c.JobHandler.GetJobPayload(ctx, jobID)
 		if err != nil {
 			log.Printf("[LISTENER] Failed to fetch job payload for ID %s: %v\n", jobID, err)
 			continue
 		}
-		sendJobEmail(ctx, *emailPayload, dispatcher)
-		log.Printf("[LISTENER] Job email sent for ID %s\n", jobID)
-		// Update job status in the database
-		// err = c.JobHandler.UpdateJobStatus(ctx, jobID, task.StatusCompleted)
-		// if err != nil {
-		// 	log.Printf("[LISTENER] Failed to update job status for ID %s: %v\n", jobID, err)
-		// 	continue
-		// }
-		// log.Printf("[LISTENER] Job status updated to completed for ID %s\n", jobID)
-		// Notify WebSocket clients
-		jsonMsg := task.WebSocketPayload{
-			JobID:   jobID.String(),
-			JobType: "job_update",
-			Status:  "completed",
+
+		priorityValue := map[string]int{
+			"high":   1,
+			"medium": 2,
+			"low":    3,
+		}[jobPayload.Priority]
+
+		job := &JobItem{
+			ID:       jobID,
+			RunAt:    jobPayload.RunAt,
+			Priority: priorityValue,
+			Attempts: jobPayload.Attempts,
+			Payload:  jobPayload.Payload,
+			JobType:  jobPayload.JobType,
+			Status:   jobPayload.Status,
 		}
-		jsonMsgBytes, err := json.Marshal(jsonMsg)
-		if err != nil {
-			log.Printf("[LISTENER] Failed to marshal JSON for job ID %s: %v\n", jobID, err)
-			continue
-		}
-		c.WebSocketHub.Broadcast <- jsonMsgBytes
-		log.Printf("[LISTENER] WebSocket notification sent for job ID %s\n", jobID)
+
+		log.Printf("[LISTENER] Enqueuing job ID %s with priority %d and run_at %s\n", jobID, priorityValue, jobPayload.RunAt)
+
+		queueMutex.Lock()
+		heap.Push(&jobQueue, job)
+		jobQueueCond.Signal()
+		queueMutex.Unlock()
 	}
-}
-
-func sendJobEmail(context context.Context, payload task.EmailPayload, dispatcher *enqueue.TaskDispatcher) {
-
-	_ = dispatcher.EnqueueSendJobEmail(context, task.EmailPayload{
-		Recipient: payload.Recipient,
-		Subject:   payload.Subject,
-		Body:      payload.Body,
-	})
 }

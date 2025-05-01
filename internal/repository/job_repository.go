@@ -2,6 +2,8 @@ package repository
 
 import (
 	"context"
+	"encoding/json"
+	"log"
 	"time"
 
 	"github.com/Nezent/go-queue/common"
@@ -16,7 +18,7 @@ type JobRepository interface {
 	// CreateJob creates a new job in the database.
 	CreateJob(context.Context, domain.Job) (*domain.Job, *common.AppError)
 	// GetJobPayload retrieves a job payload by its ID.
-	GetJobPayload(context.Context, uuid.UUID) (*task.EmailPayload, *common.AppError)
+	GetJobPayload(context.Context, uuid.UUID) (*task.JobPayload, *common.AppError)
 	// // UpdateJobStatus updates an existing job status in the database.
 	UpdateJobStatus(context.Context, uuid.UUID) (*domain.Job, *common.AppError)
 	// GetJobStatus retrieves the status of a job by its ID.
@@ -56,17 +58,33 @@ func (jr jobRepository) CreateJob(ctx context.Context, job domain.Job) (*domain.
 	return &job, nil
 }
 
-func (jr jobRepository) GetJobPayload(ctx context.Context, jobID uuid.UUID) (*task.EmailPayload, *common.AppError) {
-
-	// Retrieve job payload from database
+func (jr jobRepository) GetJobPayload(ctx context.Context, jobID uuid.UUID) (*task.JobPayload, *common.AppError) {
 	query := `
-		SELECT payload FROM jobs WHERE id = $1
+		SELECT type, payload, status, priority, attempts, run_at FROM jobs WHERE id = $1
 	`
-	var payload task.EmailPayload
-	err := jr.db.QueryRow(ctx, query, jobID).Scan(&payload)
+
+	var payload task.JobPayload
+	var rawPayload []byte // payload column as JSON
+	err := jr.db.QueryRow(ctx, query, jobID).Scan(
+		&payload.JobType,
+		&rawPayload,
+		&payload.Status,
+		&payload.Priority,
+		&payload.Attempts,
+		&payload.RunAt,
+	)
 	if err != nil {
+		log.Printf("[DEBUG] QueryRow scan failed for jobID %s: %v", jobID, err)
 		return nil, common.NewUnexpectedServerError("Failed to retrieve job payload", err)
 	}
+
+	// Unmarshal JSON payload
+	var emailPayload task.EmailPayload
+	if err := json.Unmarshal(rawPayload, &emailPayload); err != nil {
+		return nil, common.NewUnexpectedServerError("Failed to parse job payload JSON", err)
+	}
+
+	payload.Payload = emailPayload
 	return &payload, nil
 }
 
