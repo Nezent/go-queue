@@ -44,7 +44,7 @@ go-queue/
 
 ---
 
-## 🎯 Application Features Overview
+## 🌟 Application Features Overview
 
 This job queue system is designed with **security**, **performance**, and **developer-friendliness** in mind. Below is a summary of what it offers:
 
@@ -83,7 +83,38 @@ This job queue system is designed with **security**, **performance**, and **deve
 
 ---
 
-## 🚦 Roadmap & Learning Milestones
+## ⚖️ Priority Queue Implementation
+
+To ensure **efficient job processing**, GoQueue uses a **priority-aware scheduling algorithm**. Jobs are stored with a `priority` field (`high`, `medium`, `low`) and a `run_at` timestamp.
+
+### ▶️ How It Works:
+- The worker polls jobs using this SQL logic:
+
+```sql
+SELECT * FROM jobs
+WHERE status = 'pending' AND run_at <= NOW()
+ORDER BY 
+  CASE priority
+    WHEN 'high' THEN 1
+    WHEN 'medium' THEN 2
+    WHEN 'low' THEN 3
+  END,
+  run_at ASC
+LIMIT 1
+FOR UPDATE SKIP LOCKED;
+```
+
+- This ensures high-priority and overdue jobs are processed **first**, improving performance and responsiveness for time-sensitive tasks.
+- Each worker instance fetches and locks jobs to avoid duplication.
+- Combined with retry logic and WebSocket updates, the system remains robust under load.
+
+### 📈 Priority Queue Flow
+
+![Priority Queue Flow](./queue_flow.png)
+
+---
+
+## ✅ Roadmap & Learning Milestones
 
 ### ✅ Phase 1: Foundation – REST API + PostgreSQL + Auth
 
@@ -175,7 +206,7 @@ This job queue system is designed with **security**, **performance**, and **deve
         "name": "Sirajum Munir",
         "email": "sirajummunir31@gmail.com",
         "email_verified": false,
-        "verification_token": "890b1942572ef7d31095db5304dc1910960e118fd08d680b91e9afe9500d414d",
+        "verification_token": "...",
         "last_login_at": "2025-04-22T22:09:55+06:00"
       }
     }
@@ -197,20 +228,10 @@ This job queue system is designed with **security**, **performance**, and **deve
       "success": true,
       "message": "Login successful",
       "data": {
-        "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NDU0MDY5NDksInJvbGUiOiJ1c2VyIiwidXNlcl9pZCI6ImE4NWY5MmU5LTUwYTAtNDlmNy05OTNlLWYwYzE2NmI3MmYwNCJ9.u1yGfSciHw4Q4hzQOrnvzNchJpSUmhR1DFYELFrfUi0"
+        "access_token": "<JWT_TOKEN>"
       }
     }
     ```
-  - JWT Claim:
-    ```json
-    {
-      "exp": 1745406949,
-      "role": "user",
-      "user_id": "a85f92e9-50a0-49f7-993e-f0c166b72f04"
-    }
-    ```
-
-
 
 ### 📦 Job Routes (require JWT)
 
@@ -236,8 +257,8 @@ This job queue system is designed with **security**, **performance**, and **deve
       "success": true,
       "message": "Job created successfully",
       "data": {
-        "id": "0d883428-ba88-4780-afaa-d69ef7596221",
-        "user_id": "58654e8d-21e6-41c6-9765-d132c52864c5",
+        "id": "...",
+        "user_id": "...",
         "type": "email",
         "payload": {
           "body": "Welcome to our platform!",
@@ -248,14 +269,11 @@ This job queue system is designed with **security**, **performance**, and **deve
         "priority": "high",
         "attempts": 0,
         "run_at": "2025-04-30T10:00:00Z",
-        "created_at": "2025-04-28T10:28:02+06:00",
-        "updated_at": "2025-04-28T10:28:02+06:00"
+        "created_at": "...",
+        "updated_at": "..."
       }
     }
     ```
-<!-- - `GET /jobs/:id` – View job (only if you own it)
-- `GET /jobs` – List your jobs (by status, priority)
-- `POST /jobs/:id/retry` – Retry failed job -->
 
 ### 📡 Real-Time
 - **`WS /ws/jobs`** 
@@ -264,7 +282,7 @@ This job queue system is designed with **security**, **performance**, and **deve
   - Response:
     ```json
     {
-      "job_id": "0d883428-ba88-4780-afaa-d69ef7596221",
+      "job_id": "...",
       "job_type": "email",
       "status": "completed"
     }
@@ -275,10 +293,10 @@ This job queue system is designed with **security**, **performance**, and **deve
 ## 🚀 Tech Stack
 
 - 🧠 **Language:** Go (Golang)  
-- 🗄️ **Database:** PostgreSQL  
+- 💄 **Database:** PostgreSQL  
 - 🔐 **Authentication:** JWT + bcrypt  
 - 🌐 **API Framework:** Chi  
-- 🛢️ **DB Layer:** pgx  
+- 📂 **DB Layer:** pgx  
 - 🧵 **Background Tasks:** Asynq  
 - 🐳 **DevOps & Containerization:** Docker  
 - ⚡ **Realtime Communication:** WebSocket  
@@ -309,5 +327,3 @@ This job queue system is designed with **security**, **performance**, and **deve
 ## 🤝 Contributors
 
 Made with ❤️ by Sirajum Munir (Nezent)
-
-
