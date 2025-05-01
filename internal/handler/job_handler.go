@@ -1,12 +1,16 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 
 	"github.com/Nezent/go-queue/common"
 	"github.com/Nezent/go-queue/internal/domain"
 	"github.com/Nezent/go-queue/internal/service"
+	"github.com/Nezent/go-queue/internal/worker/task"
+	"github.com/google/uuid"
 )
 
 type JobHandler struct {
@@ -28,4 +32,18 @@ func (jh *JobHandler) CreateJob(w http.ResponseWriter, r *http.Request) {
 	}
 
 	common.RespondJSON(w, http.StatusOK, common.SuccessResponse("Job created successfully", jobResponse))
+}
+
+func (jh *JobHandler) GetJobPayload(ctx context.Context, jobID uuid.UUID) (*task.EmailPayload, error) {
+	if jobID == uuid.Nil {
+		return nil, errors.New("invalid job id")
+	}
+	jobPayload, err := jh.Service.GetJobPayload(ctx, jobID)
+	if err != nil {
+		return nil, err
+	}
+	if jobPayload == nil {
+		return nil, errors.New("job payload not found")
+	}
+	return jobPayload, nil
 }

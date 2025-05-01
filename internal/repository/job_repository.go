@@ -7,6 +7,7 @@ import (
 	"github.com/Nezent/go-queue/common"
 	"github.com/Nezent/go-queue/internal/domain"
 	"github.com/Nezent/go-queue/internal/middleware"
+	"github.com/Nezent/go-queue/internal/worker/task"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -14,10 +15,10 @@ import (
 type JobRepository interface {
 	// CreateJob creates a new job in the database.
 	CreateJob(context.Context, domain.Job) (*domain.Job, *common.AppError)
-	// GetJob retrieves a job by its ID.
-	// GetJob(ctx context.Context, jobID uuid.UUID) (*domain.Job, *common.AppError)
-	// // UpdateJob updates an existing job in the database.
-	// UpdateJob(ctx context.Context, job domain.Job) (*domain.Job, *common.AppError)
+	// GetJobPayload retrieves a job payload by its ID.
+	GetJobPayload(context.Context, uuid.UUID) (*task.EmailPayload, *common.AppError)
+	// // UpdateJobStatus updates an existing job status in the database.
+	UpdateJobStatus(context.Context, uuid.UUID) (*domain.Job, *common.AppError)
 	// // DeleteJob deletes a job from the database.
 	// DeleteJob(ctx context.Context, jobID uuid.UUID) *common.AppError
 	// // ListJobs retrieves a list of jobs with pagination.
@@ -28,7 +29,7 @@ type jobRepository struct {
 	db *pgxpool.Pool
 }
 
-func (jr *jobRepository) CreateJob(ctx context.Context, job domain.Job) (*domain.Job, *common.AppError) {
+func (jr jobRepository) CreateJob(ctx context.Context, job domain.Job) (*domain.Job, *common.AppError) {
 	// Extract transaction from context
 	tx, err := middleware.GetTxFromContext(ctx)
 	if err != nil {
@@ -58,8 +59,42 @@ func (jr *jobRepository) CreateJob(ctx context.Context, job domain.Job) (*domain
 	return &job, nil
 }
 
-func NewJobRepository(db *pgxpool.Pool) *jobRepository {
-	return &jobRepository{
+func (jr jobRepository) GetJobPayload(ctx context.Context, jobID uuid.UUID) (*task.EmailPayload, *common.AppError) {
+
+	// Retrieve job payload from database
+	query := `
+		SELECT payload FROM jobs WHERE id = $1
+	`
+	var payload task.EmailPayload
+	err := jr.db.QueryRow(ctx, query, jobID).Scan(&payload)
+	if err != nil {
+		return nil, common.NewUnexpectedServerError("Failed to retrieve job payload", err)
+	}
+	return &payload, nil
+}
+
+func (jr jobRepository) UpdateJobStatus(ctx context.Context, jobID uuid.UUID) (*domain.Job, *common.AppError) {
+	// Extract transaction from context
+	tx, err := middleware.GetTxFromContext(ctx)
+	if err != nil {
+		return nil, common.NewUnexpectedServerError("Transaction context not found", err)
+	}
+
+	// Update job status in database
+	query := `
+		UPDATE jobs SET status = 'completed', updated_at = $1 WHERE id = $2 RETURNING *
+	`
+	job := domain.Job{}
+	err = tx.QueryRow(ctx, query, time.Now().Format(time.RFC3339), jobID).Scan(&job.ID, &job.UserID, &job.Type, &job.Payload, &job.Status, &job.Priority, &job.Attempts, &job.RunAt, &job.CreatedAt, &job.UpdatedAt)
+	if err != nil {
+		return nil, common.NewUnexpectedServerError("Failed to update job status", err)
+	}
+	job.UpdatedAt = time.Now().Format(time.RFC3339)
+	return &job, nil
+}
+
+func NewJobRepository(db *pgxpool.Pool) jobRepository {
+	return jobRepository{
 		db: db,
 	}
 }

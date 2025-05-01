@@ -5,12 +5,12 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"time"
 
 	"github.com/Nezent/go-queue/cmd/routes"
 	"github.com/Nezent/go-queue/config"
 	"github.com/Nezent/go-queue/internal/bootstrap"
 	"github.com/Nezent/go-queue/internal/middleware"
+	"github.com/Nezent/go-queue/internal/worker"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/cors"
 	"github.com/hibiken/asynq"
@@ -19,16 +19,20 @@ import (
 
 func main() {
 
+	if err := godotenv.Load(".env"); err != nil {
+		log.Println("[INFO] .env file not found, using system environment variables")
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	// Connect to DB
 	db, err := config.ConnectDB()
+
 	if err != nil {
 		log.Fatalf("Failed to connect to database: %v", err)
 	}
 	defer func() {
-		_, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
 		db.Close()
-		log.Println("Database pool closed")
+		log.Println("✅ Database pool closed")
 	}()
 
 	// Initialize Chi router
@@ -44,10 +48,6 @@ func main() {
 		MaxAge:           30,
 	}))
 
-	if err := godotenv.Load(".env"); err != nil {
-		log.Println("[INFO] .env file not found, using system environment variables")
-	}
-
 	redisOpt := asynq.RedisClientOpt{
 		Addr: os.Getenv("REDIS_ADDR"),
 	}
@@ -56,6 +56,9 @@ func main() {
 
 	// Dependency injection
 	container := bootstrap.Initialize(db, dispatcher)
+
+	// Initialize the Listeners
+	go worker.StartPgListener(ctx, "job_updates", db, dispatcher, container)
 
 	// Register all routes
 	routes.RegisterRoutes(r, container)

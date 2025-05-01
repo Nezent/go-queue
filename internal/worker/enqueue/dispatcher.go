@@ -30,3 +30,15 @@ func (d *TaskDispatcher) EnqueueSendVerificationEmail(ctx context.Context, paylo
 	_, err = d.Client.EnqueueContext(ctx, task, asynq.MaxRetry(5), asynq.Timeout(30*time.Second))
 	return err
 }
+
+func (d *TaskDispatcher) EnqueueSendJobEmail(ctx context.Context, payload task.EmailPayload) error {
+	data, err := json.Marshal(payload)
+	if err != nil {
+		return err
+	}
+
+	task := asynq.NewTask(task.TaskSendJobEmail, data)
+
+	_, err = d.Client.EnqueueContext(ctx, task, asynq.MaxRetry(5), asynq.Timeout(30*time.Second))
+	return err
+}

@@ -7,18 +7,17 @@ import (
 	"github.com/Nezent/go-queue/internal/domain"
 	"github.com/Nezent/go-queue/internal/middleware"
 	"github.com/Nezent/go-queue/internal/repository"
+	"github.com/Nezent/go-queue/internal/worker/task"
 	"github.com/google/uuid"
 )
 
 type JobService interface {
 	// CreateJob creates a new job in the database.
 	CreateJob(context.Context, domain.JobCreateRequestDTO) (*domain.Job, *common.AppError)
-	// GetJob retrieves a job by its ID.
-	// GetJob(ctx context.Context, jobID uuid.UUID) (*domain.Job, *common.AppError)
-	// // UpdateJob updates an existing job in the database.
-	// UpdateJob(ctx context.Context, job domain.Job) (*domain.Job, *common.AppError)
-	// // DeleteJob deletes a job from the database.
-	// DeleteJob(ctx context.Context, jobID uuid.UUID) *common.AppError
+	// GetJobPayload retrieves a job payload by its ID.
+	GetJobPayload(context.Context, uuid.UUID) (*task.EmailPayload, *common.AppError)
+	// UpdateJobStatus updates an existing job status in the database.
+	UpdateJobStatus(context.Context, uuid.UUID) (*domain.Job, *common.AppError)
 }
 
 type jobService struct {
@@ -55,6 +54,25 @@ func (js *jobService) CreateJob(ctx context.Context, job domain.JobCreateRequest
 	}
 
 	return createdJob, nil
+}
+
+func (js *jobService) GetJobPayload(ctx context.Context, jobID uuid.UUID) (*task.EmailPayload, *common.AppError) {
+	// Retrieve job payload from the repository
+	payload, appErr := js.jobRepo.GetJobPayload(ctx, jobID)
+	if appErr != nil {
+		return nil, appErr
+	}
+
+	return payload, nil
+}
+func (js *jobService) UpdateJobStatus(ctx context.Context, jobID uuid.UUID) (*domain.Job, *common.AppError) {
+	// Update job status in the repository
+	job, appErr := js.jobRepo.UpdateJobStatus(ctx, jobID)
+	if appErr != nil {
+		return nil, appErr
+	}
+
+	return job, nil
 }
 
 func NewJobService(jobRepo repository.JobRepository) *jobService {

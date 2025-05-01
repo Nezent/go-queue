@@ -17,6 +17,7 @@ func NewAsynqServer(redisOpt asynq.RedisClientOpt) *asynq.Server {
 func NewServeMux(processor *processor.TaskProcessor) *asynq.ServeMux {
 	mux := asynq.NewServeMux()
 	mux.HandleFunc(task.TaskSendVerificationEmail, processor.HandleSendVerificationEmail)
+	mux.HandleFunc(task.TaskSendJobEmail, processor.HandleSendJobEmail)
 	// Register other task handlers here
 	return mux
 }

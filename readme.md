@@ -267,7 +267,7 @@ This job queue system is designed with **security**, **performance**, and **deve
 - 🔐 **Authentication:** JWT + bcrypt  
 - 🌐 **API Framework:** Chi  
 - 🛢️ **DB Layer:** pgx  
-- 🧵 **Background Tasks:** Goroutines  
+- 🧵 **Background Tasks:** Asynq  
 - 🐳 **DevOps & Containerization:** Docker  
 - ⚡ **Realtime Communication:** WebSocket  
 - ☁️ **Deployment:** Github
