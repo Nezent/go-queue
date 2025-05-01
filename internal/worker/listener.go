@@ -2,6 +2,7 @@ package worker
 
 import (
 	"context"
+	"encoding/json"
 	"log"
 
 	"github.com/Nezent/go-queue/internal/bootstrap"
@@ -43,6 +44,26 @@ func StartPgListener(ctx context.Context, channel string, pool *pgxpool.Pool, di
 		}
 		sendJobEmail(ctx, *emailPayload, dispatcher)
 		log.Printf("[LISTENER] Job email sent for ID %s\n", jobID)
+		// Update job status in the database
+		// err = c.JobHandler.UpdateJobStatus(ctx, jobID, task.StatusCompleted)
+		// if err != nil {
+		// 	log.Printf("[LISTENER] Failed to update job status for ID %s: %v\n", jobID, err)
+		// 	continue
+		// }
+		// log.Printf("[LISTENER] Job status updated to completed for ID %s\n", jobID)
+		// Notify WebSocket clients
+		jsonMsg := task.WebSocketPayload{
+			JobID:   jobID.String(),
+			JobType: "job_update",
+			Status:  "completed",
+		}
+		jsonMsgBytes, err := json.Marshal(jsonMsg)
+		if err != nil {
+			log.Printf("[LISTENER] Failed to marshal JSON for job ID %s: %v\n", jobID, err)
+			continue
+		}
+		c.WebSocketHub.Broadcast <- jsonMsgBytes
+		log.Printf("[LISTENER] WebSocket notification sent for job ID %s\n", jobID)
 	}
 }
 

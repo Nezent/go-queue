@@ -53,9 +53,13 @@ func main() {
 	}
 
 	dispatcher := bootstrap.InitializeDispatcher(redisOpt)
+	hub := bootstrap.SetupWebSocketHub()
 
 	// Dependency injection
-	container := bootstrap.Initialize(db, dispatcher)
+	container := bootstrap.Initialize(db, dispatcher, hub)
+
+	// Initialize the WebSocket Hub
+	go hub.Run()
 
 	// Initialize the Listeners
 	go worker.StartPgListener(ctx, "job_updates", db, dispatcher, container)

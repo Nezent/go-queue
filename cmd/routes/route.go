@@ -1,9 +1,12 @@
 package routes
 
 import (
+	"net/http"
+
 	"github.com/Nezent/go-queue/internal/bootstrap"
 	"github.com/Nezent/go-queue/internal/handler"
 	"github.com/Nezent/go-queue/internal/middleware"
+	"github.com/Nezent/go-queue/internal/websocket"
 	"github.com/go-chi/chi/v5"
 )
 
@@ -42,6 +45,13 @@ func RegisterRoutes(r chi.Router, c *bootstrap.Container) {
 			// jobs.Get("/{job_id}", c.JobHandler.GetJobById)
 		})
 
+		// 📦 WebSocket Routes
+		api.Route("/ws", func(ws chi.Router) {
+			ws.Use(middleware.AuthMiddleware)
+			ws.Get("/jobs", func(w http.ResponseWriter, r *http.Request) {
+				websocket.HandleWebSocket(c.WebSocketHub, w, r)
+			})
+		})
 		// ✅ Add more domain-specific groups below (example: /tasks, /reports, /analytics)
 	})
 }

@@ -24,6 +24,8 @@ go-queue/
 │   ├── routes/             # Route registration
 │   └── worker/             # Background worker runner
 ├── internal/
+│   ├── websocket/          # WebSocket connection handler
+│   ├── worker/             # Worker pool, job processing
 │   ├── middleware/         # HTTP middleware (auth, logging, recovery)
 │   ├── bootstrap/          # Dependency injection, wire setup
 │   ├── handler/            # HTTP handlers (controllers)
