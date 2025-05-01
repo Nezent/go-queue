@@ -87,30 +87,13 @@ This job queue system is designed with **security**, **performance**, and **deve
 
 To ensure **efficient job processing**, GoQueue uses a **priority-aware scheduling algorithm**. Jobs are stored with a `priority` field (`high`, `medium`, `low`) and a `run_at` timestamp.
 
-### ▶️ How It Works:
-- The worker polls jobs using this SQL logic:
-
-```sql
-SELECT * FROM jobs
-WHERE status = 'pending' AND run_at <= NOW()
-ORDER BY 
-  CASE priority
-    WHEN 'high' THEN 1
-    WHEN 'medium' THEN 2
-    WHEN 'low' THEN 3
-  END,
-  run_at ASC
-LIMIT 1
-FOR UPDATE SKIP LOCKED;
-```
-
 - This ensures high-priority and overdue jobs are processed **first**, improving performance and responsiveness for time-sensitive tasks.
 - Each worker instance fetches and locks jobs to avoid duplication.
 - Combined with retry logic and WebSocket updates, the system remains robust under load.
 
-### 📈 Priority Queue Flow
 
-![Priority Queue Flow](./queue_flow.png)
+### 📊 Job Status Flow
+![Job Status Flow](./job_notification.png)
 
 ---
 
