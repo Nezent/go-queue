@@ -8,10 +8,13 @@ import (
 	"sync"
 	"time"
 
+	"github.com/Nezent/go-queue/common"
 	"github.com/Nezent/go-queue/internal/bootstrap"
+	"github.com/Nezent/go-queue/internal/middleware"
 	"github.com/Nezent/go-queue/internal/worker/enqueue"
 	"github.com/Nezent/go-queue/internal/worker/task"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type JobItem struct {
@@ -65,59 +68,104 @@ var (
 	jobQueueCond = sync.NewCond(&queueMutex)
 )
 
-func InitJobQueue(ctx context.Context, dispatcher *enqueue.TaskDispatcher, c *bootstrap.Container) {
+func InitJobQueue(ctx context.Context, dispatcher *enqueue.TaskDispatcher, c *bootstrap.Container, db *pgxpool.Pool) {
 	heap.Init(&jobQueue)
-	go processJobs(ctx, &jobQueue, dispatcher, c)
+	go processJobs(ctx, &jobQueue, dispatcher, c, db)
 }
 
-func processJobs(ctx context.Context, jobQueue *JobPriorityQueue, dispatcher *enqueue.TaskDispatcher, c *bootstrap.Container) {
+func processJobs(ctx context.Context, jobQueue *JobPriorityQueue, dispatcher *enqueue.TaskDispatcher, c *bootstrap.Container, db *pgxpool.Pool) {
+	timer := time.NewTimer(time.Hour) // Long initial timer, will be reset
+	defer timer.Stop()
+
 	for {
 		queueMutex.Lock()
 
+		// Wait if no jobs
 		for len(*jobQueue) == 0 {
-			// Wait until a job is pushed
+			timer.Stop()
 			jobQueueCond.Wait()
 		}
 
-		jobItem := heap.Pop(jobQueue).(*JobItem)
+		nextJob := (*jobQueue)[0]
+		now := time.Now().In(common.DhakaTZ)
+		sleepDuration := time.Until(nextJob.RunAt)
 
-		now := time.Now()
-		if now.Before(jobItem.RunAt) {
-			// Requeue and wait until the job is ready
-			heap.Push(jobQueue, jobItem)
-			sleepDuration := jobItem.RunAt.Sub(now)
+		if sleepDuration > 0 {
+			// Job is scheduled for the future, wait until it's due
+			if !timer.Stop() {
+				select {
+				case <-timer.C:
+				default:
+				}
+			}
+			timer.Reset(sleepDuration)
 			queueMutex.Unlock()
 
-			time.Sleep(sleepDuration) // wait until the job's RunAt time
+			select {
+			case <-ctx.Done():
+				return
+			case <-timer.C:
+				// Timer expired, job might be ready now
+			}
 			continue
 		}
 
+		// Job is due
+		heap.Pop(jobQueue)
 		queueMutex.Unlock()
 
-		// Process the job
-		err := dispatcher.EnqueueSendJobEmail(ctx, jobItem.Payload)
-		if err != nil {
-			// Requeue on error
-			jobItem.Attempts++
-			log.Printf("[PROCESS] Job ID %s failed, retrying... (Attempt %d)\n", jobItem.ID, jobItem.Attempts)
+		log.Printf("[PROCESS] Current time: %s | Job ID: %s | RunAt: %s | Status: %s | Attempts: %d\n",
+			now.Format("2006-01-02 15:04:05"), nextJob.ID, nextJob.RunAt.Format("2006-01-02 15:04:05"), nextJob.Status, nextJob.Attempts+1)
 
+		err := dispatcher.EnqueueSendJobEmail(ctx, nextJob.Payload)
+		if err != nil {
+			nextJob.Attempts++
+			log.Printf("[PROCESS] Job ID %s failed, retrying... (Attempt %d)\n", nextJob.ID, nextJob.Attempts)
+			nextJob.Status = "failed"
+			nextJob.RunAt = time.Now().Add(time.Duration(nextJob.Attempts) * time.Minute)
+			nextJob.Priority = 1
+			err = updateJobStatus(ctx, nextJob.ID, nextJob.Status, nextJob.Attempts, c, db)
+			if err != nil {
+				log.Printf("[ERROR] Failed to update job status: %v\n", err)
+			}
 			queueMutex.Lock()
-			heap.Push(jobQueue, jobItem)
+			heap.Push(jobQueue, nextJob)
 			jobQueueCond.Signal()
 			queueMutex.Unlock()
 		} else {
 			jsonMsg := task.WebSocketPayload{
-				JobID:   jobItem.ID.String(),
-				JobType: jobItem.JobType,
-				Status:  jobItem.Status,
+				JobID:   nextJob.ID.String(),
+				JobType: nextJob.JobType,
+				Status:  "completed",
+			}
+			nextJob.Status = "completed"
+			err = updateJobStatus(ctx, nextJob.ID, nextJob.Status, nextJob.Attempts, c, db)
+			if err != nil {
+				log.Printf("[ERROR] Failed to update job status: %v\n", err)
 			}
 			jsonMsgBytes, err := json.Marshal(jsonMsg)
 			if err != nil {
-				log.Printf("[LISTENER] Failed to marshal JSON for job ID %s: %v\n", jobItem.ID, err)
+				log.Printf("[LISTENER] Failed to marshal JSON for job ID %s: %v\n", nextJob.ID, err)
 				continue
 			}
 			c.WebSocketHub.Broadcast <- jsonMsgBytes
-			log.Printf("[PROCESS] Job ID %s executed successfully.\n", jobItem.ID)
+			log.Printf("[PROCESS] Job ID %s executed successfully.\n", nextJob.ID)
 		}
 	}
+}
+
+func updateJobStatus(ctx context.Context, jobID uuid.UUID, status string, attempts int, c *bootstrap.Container, db *pgxpool.Pool) error {
+	tx, err := db.Begin(ctx)
+	if err != nil {
+		log.Println("failed to start transaction:", err)
+		return err
+	}
+	defer tx.Rollback(ctx)
+
+	ctx = context.WithValue(ctx, middleware.TxKey, tx)
+	appErr := c.JobHandler.UpdateJobStatus(ctx, jobID, status, attempts)
+	if appErr != nil {
+		return appErr
+	}
+	return tx.Commit(ctx)
 }

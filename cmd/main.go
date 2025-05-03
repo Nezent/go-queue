@@ -61,10 +61,10 @@ func main() {
 	// Initialize the WebSocket Hub
 	go hub.Run()
 
+	worker.InitJobQueue(ctx, dispatcher, container, db)
+
 	// Initialize the Listeners
 	go worker.StartPgListener(ctx, "job_updates", db, container)
-
-	worker.InitJobQueue(ctx, dispatcher, container)
 
 	// Register all routes
 	routes.RegisterRoutes(r, container)

@@ -67,3 +67,13 @@ func (jh *JobHandler) GetJobStatus(w http.ResponseWriter, r *http.Request) {
 
 	common.RespondJSON(w, http.StatusOK, common.SuccessResponse("Job status retrieved successfully", jobStatus))
 }
+
+func (jh *JobHandler) UpdateJobStatus(ctx context.Context, jobID uuid.UUID, status string, attempts int) *common.AppError {
+
+	_, appErr := jh.Service.UpdateJobStatus(ctx, jobID, status, attempts)
+	if appErr != nil {
+		return appErr
+	}
+
+	return nil
+}

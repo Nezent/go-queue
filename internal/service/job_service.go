@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"time"
 
 	"github.com/Nezent/go-queue/common"
 	"github.com/Nezent/go-queue/internal/domain"
@@ -17,7 +18,7 @@ type JobService interface {
 	// GetJobPayload retrieves a job payload by its ID.
 	GetJobPayload(context.Context, uuid.UUID) (*task.JobPayload, *common.AppError)
 	// UpdateJobStatus updates an existing job status in the database.
-	UpdateJobStatus(context.Context, uuid.UUID) (*domain.Job, *common.AppError)
+	UpdateJobStatus(context.Context, uuid.UUID, string, int) (*domain.Job, *common.AppError)
 	// GetJobStatus retrieves the status of a job by its ID.
 	GetJobStatus(context.Context, uuid.UUID) (*domain.JobStatusResponseDTO, *common.AppError)
 }
@@ -42,12 +43,17 @@ func (js *jobService) CreateJob(ctx context.Context, job domain.JobCreateRequest
 		return nil, common.NewBadRequestError("Invalid User ID format")
 	}
 
+	timeParse, err := time.ParseInLocation("2006-01-02T15:04:05", job.RunAt, common.DhakaTZ)
+	if err != nil {
+		return nil, common.NewBadRequestError("Invalid RunAt format")
+	}
+
 	jobEntity := domain.Job{
 		UserID:   parsedUserID,
 		Type:     job.Type,
 		Payload:  job.Payload,
 		Priority: job.Priority,
-		RunAt:    job.RunAt,
+		RunAt:    timeParse,
 	}
 
 	createdJob, appErr := js.jobRepo.CreateJob(ctx, jobEntity)
@@ -81,9 +87,9 @@ func (js *jobService) GetJobPayload(ctx context.Context, jobID uuid.UUID) (*task
 
 	return payload, nil
 }
-func (js *jobService) UpdateJobStatus(ctx context.Context, jobID uuid.UUID) (*domain.Job, *common.AppError) {
+func (js *jobService) UpdateJobStatus(ctx context.Context, jobID uuid.UUID, status string, attempts int) (*domain.Job, *common.AppError) {
 	// Update job status in the repository
-	job, appErr := js.jobRepo.UpdateJobStatus(ctx, jobID)
+	job, appErr := js.jobRepo.UpdateJobStatus(ctx, jobID, status, attempts)
 	if appErr != nil {
 		return nil, appErr
 	}

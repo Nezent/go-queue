@@ -1,6 +1,8 @@
 package domain
 
 import (
+	"time"
+
 	"github.com/google/uuid"
 )
 
@@ -12,9 +14,9 @@ type Job struct {
 	Status    string         `json:"status"`
 	Priority  string         `json:"priority"`
 	Attempts  int            `json:"attempts"`
-	RunAt     string         `json:"run_at"`
-	CreatedAt string         `json:"created_at"`
-	UpdatedAt string         `json:"updated_at"`
+	RunAt     time.Time      `json:"run_at"`
+	CreatedAt time.Time      `json:"created_at"`
+	UpdatedAt time.Time      `json:"updated_at"`
 }
 
 type JobCreateRequestDTO struct {
@@ -25,9 +27,9 @@ type JobCreateRequestDTO struct {
 }
 
 type JobStatusResponseDTO struct {
-	Type     string `json:"type"`
-	Status   string `json:"status"`
-	Priority string `json:"priority"`
-	Attempts int    `json:"attempts"`
-	RunAt    string `json:"run_at"`
+	Type     string    `json:"type"`
+	Status   string    `json:"status"`
+	Priority string    `json:"priority"`
+	Attempts int       `json:"attempts"`
+	RunAt    time.Time `json:"run_at"`
 }

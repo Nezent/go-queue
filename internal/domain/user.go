@@ -1,6 +1,10 @@
 package domain
 
-import "github.com/google/uuid"
+import (
+	"time"
+
+	"github.com/google/uuid"
+)
 
 type User struct {
 	ID                uuid.UUID `json:"id"`
@@ -9,7 +13,7 @@ type User struct {
 	Password          string    `json:"password"`
 	EmailVerified     bool      `json:"email_verified"`
 	VerificationToken string    `json:"verification_token"`
-	LastLoginAt       string    `json:"last_login_at"`
+	LastLoginAt       time.Time `json:"last_login_at"`
 }
 
 type UserRegisterDTO struct {
@@ -24,7 +28,7 @@ type UserResponseDTO struct {
 	Email             string    `json:"email"`
 	EmailVerified     bool      `json:"email_verified"`
 	VerificationToken string    `json:"verification_token"`
-	LastLoginAt       string    `json:"last_login_at"`
+	LastLoginAt       time.Time `json:"last_login_at"`
 }
 
 type UserLoginRequestDTO struct {

@@ -39,6 +39,9 @@ func StartPgListener(ctx context.Context, channel string, pool *pgxpool.Pool, c 
 			log.Printf("[LISTENER] Failed to fetch job payload for ID %s: %v\n", jobID, err)
 			continue
 		}
+		if jobPayload.Status == "completed" {
+			continue
+		}
 
 		priorityValue := map[string]int{
 			"high":   1,
@@ -60,7 +63,7 @@ func StartPgListener(ctx context.Context, channel string, pool *pgxpool.Pool, c 
 
 		queueMutex.Lock()
 		heap.Push(&jobQueue, job)
-		jobQueueCond.Signal()
+		jobQueueCond.Broadcast()
 		queueMutex.Unlock()
 	}
 }
