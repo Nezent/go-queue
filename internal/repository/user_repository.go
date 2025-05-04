@@ -50,7 +50,7 @@ func (ur userRepository) RegisterUser(ctx context.Context, user domain.User) (*d
 	`
 	err = tx.QueryRow(ctx, query,
 		user.Name, user.Email, hashedPassword, false,
-		verificationToken, time.Now().Format(time.RFC3339), time.Now().Format(time.RFC3339),
+		verificationToken, time.Now().In(common.DhakaTZ), time.Now().In(common.DhakaTZ),
 	).Scan(&userID)
 	if err != nil {
 		if pgErr, ok := err.(*pgconn.PgError); ok && pgErr.Code == "23505" {
@@ -62,7 +62,7 @@ func (ur userRepository) RegisterUser(ctx context.Context, user domain.User) (*d
 	user.ID = userID
 	verification_token := verificationToken
 	user.VerificationToken = *verification_token
-	user.LastLoginAt = time.Now().Format(time.RFC3339)
+	user.LastLoginAt = time.Now().In(common.DhakaTZ)
 
 	return &user, nil
 }

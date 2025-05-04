@@ -56,11 +56,13 @@ func StartPgListener(ctx context.Context, channel string, pool *pgxpool.Pool, c 
 			Status:   jobPayload.Status,
 		}
 
-		log.Printf("[LISTENER] Enqueuing job ID %s with priority %d and run_at %s\n", jobID, priorityValue, jobPayload.RunAt)
+		if jobPayload.Status == "pending" {
+			log.Printf("[LISTENER] Enqueuing job ID %s with priority %d and run_at %s\n", jobID, priorityValue, jobPayload.RunAt)
 
-		queueMutex.Lock()
-		heap.Push(&jobQueue, job)
-		jobQueueCond.Signal()
-		queueMutex.Unlock()
+			queueMutex.Lock()
+			heap.Push(&jobQueue, job)
+			jobQueueCond.Broadcast()
+			queueMutex.Unlock()
+		}
 	}
 }
