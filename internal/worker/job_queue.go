@@ -74,82 +74,86 @@ func InitJobQueue(ctx context.Context, dispatcher *enqueue.TaskDispatcher, c *bo
 }
 
 func processJobs(ctx context.Context, jobQueue *JobPriorityQueue, dispatcher *enqueue.TaskDispatcher, c *bootstrap.Container, db *pgxpool.Pool) {
-	timer := time.NewTimer(time.Hour) // Long initial timer, will be reset
-	defer timer.Stop()
+	ticker := time.NewTicker(10 * time.Second)
+	defer ticker.Stop()
 
 	for {
-		queueMutex.Lock()
-
-		// Wait if no jobs
-		for len(*jobQueue) == 0 {
-			timer.Stop()
-			jobQueueCond.Wait()
-		}
-
-		nextJob := (*jobQueue)[0]
-		now := time.Now().In(common.DhakaTZ)
-		sleepDuration := time.Until(nextJob.RunAt)
-
-		if sleepDuration > 0 {
-			// Job is scheduled for the future, wait until it's due
-			if !timer.Stop() {
-				select {
-				case <-timer.C:
-				default:
-				}
-			}
-			timer.Reset(sleepDuration)
-			queueMutex.Unlock()
-
-			select {
-			case <-ctx.Done():
-				return
-			case <-timer.C:
-				// Timer expired, job might be ready now
-			}
-			continue
-		}
-
-		// Job is due
-		heap.Pop(jobQueue)
-		queueMutex.Unlock()
-
-		log.Printf("[PROCESS] Current time: %s | Job ID: %s | RunAt: %s | Status: %s | Attempts: %d\n",
-			now.Format("2006-01-02 15:04:05"), nextJob.ID, nextJob.RunAt.Format("2006-01-02 15:04:05"), nextJob.Status, nextJob.Attempts+1)
-
-		err := dispatcher.EnqueueSendJobEmail(ctx, nextJob.Payload)
-		if err != nil {
-			nextJob.Attempts++
-			log.Printf("[PROCESS] Job ID %s failed, retrying... (Attempt %d)\n", nextJob.ID, nextJob.Attempts)
-			nextJob.Status = "failed"
-			nextJob.RunAt = time.Now().Add(time.Duration(nextJob.Attempts) * time.Minute)
-			nextJob.Priority = 1
-			err = updateJobStatus(ctx, nextJob.ID, nextJob.Status, nextJob.Attempts, c, db)
-			if err != nil {
-				log.Printf("[ERROR] Failed to update job status: %v\n", err)
-			}
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
 			queueMutex.Lock()
-			heap.Push(jobQueue, nextJob)
-			jobQueueCond.Signal()
-			queueMutex.Unlock()
-		} else {
-			jsonMsg := task.WebSocketPayload{
-				JobID:   nextJob.ID.String(),
-				JobType: nextJob.JobType,
-				Status:  "completed",
-			}
-			nextJob.Status = "completed"
-			err = updateJobStatus(ctx, nextJob.ID, nextJob.Status, nextJob.Attempts, c, db)
-			if err != nil {
-				log.Printf("[ERROR] Failed to update job status: %v\n", err)
-			}
-			jsonMsgBytes, err := json.Marshal(jsonMsg)
-			if err != nil {
-				log.Printf("[LISTENER] Failed to marshal JSON for job ID %s: %v\n", nextJob.ID, err)
+
+			if len(*jobQueue) == 0 {
+				log.Println("Job queue is empty, waiting for jobs...")
+				jobQueueCond.Wait()
+
+				if ctx.Err() != nil {
+					queueMutex.Unlock()
+					return
+				}
+				queueMutex.Unlock()
 				continue
 			}
-			c.WebSocketHub.Broadcast <- jsonMsgBytes
-			log.Printf("[PROCESS] Job ID %s executed successfully.\n", nextJob.ID)
+
+			now := time.Now().In(common.DhakaTZ).Truncate(time.Second)
+			nextJob := (*jobQueue)[0]
+
+			if nextJob.RunAt.After(now) {
+				queueMutex.Unlock()
+				continue
+			}
+			// Remove the job from the queue
+			heap.Pop(jobQueue)
+			queueMutex.Unlock()
+			// Process the job
+			log.Printf("[PROCESS] Processing job ID %s...\n", nextJob.ID)
+
+			nextJob.Attempts++
+			if nextJob.Attempts > 3 {
+				log.Printf("[PROCESS] Job ID %s failed after 3 attempts, marking as failed.\n", nextJob.ID)
+				nextJob.Status = "failed"
+				err := updateJobStatus(ctx, nextJob.ID, nextJob.Status, nextJob.Attempts, c, db)
+				if err != nil {
+					log.Printf("[ERROR] Failed to update job status: %v\n", err)
+				}
+				continue
+			}
+
+			err := dispatcher.EnqueueSendJobEmail(ctx, nextJob.Payload)
+			if err != nil {
+				nextJob.Attempts++
+				log.Printf("[PROCESS] Job ID %s failed, retrying... (Attempt %d)\n", nextJob.ID, nextJob.Attempts)
+				nextJob.Status = "processing"
+				nextJob.RunAt = time.Now().Add(time.Duration(nextJob.Attempts) * time.Minute)
+				nextJob.Priority = 1
+				err = updateJobStatus(ctx, nextJob.ID, nextJob.Status, nextJob.Attempts, c, db)
+				if err != nil {
+					log.Printf("[ERROR] Failed to update job status: %v\n", err)
+				}
+				queueMutex.Lock()
+				heap.Push(jobQueue, nextJob)
+				jobQueueCond.Signal()
+				queueMutex.Unlock()
+			} else {
+				jsonMsg := task.WebSocketPayload{
+					JobID:   nextJob.ID.String(),
+					JobType: nextJob.JobType,
+					Status:  "completed",
+				}
+				nextJob.Status = "completed"
+				err = updateJobStatus(ctx, nextJob.ID, nextJob.Status, nextJob.Attempts, c, db)
+				if err != nil {
+					log.Printf("[ERROR] Failed to update job status: %v\n", err)
+				}
+				jsonMsgBytes, err := json.Marshal(jsonMsg)
+				if err != nil {
+					log.Printf("[LISTENER] Failed to marshal JSON for job ID %s: %v\n", nextJob.ID, err)
+					continue
+				}
+				c.WebSocketHub.Broadcast <- jsonMsgBytes
+				log.Printf("[PROCESS] Job ID %s executed successfully.\n", nextJob.ID)
+			}
 		}
 	}
 }
