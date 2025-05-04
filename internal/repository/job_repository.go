@@ -20,7 +20,7 @@ type JobRepository interface {
 	// GetJobPayload retrieves a job payload by its ID.
 	GetJobPayload(context.Context, uuid.UUID) (*task.JobPayload, *common.AppError)
 	// // UpdateJobStatus updates an existing job status in the database.
-	UpdateJobStatus(context.Context, uuid.UUID) (*domain.Job, *common.AppError)
+	UpdateJobStatus(context.Context, uuid.UUID, string, int) (*domain.Job, *common.AppError)
 	// GetJobStatus retrieves the status of a job by its ID.
 	GetJobStatus(context.Context, uuid.UUID) (*domain.JobStatusResponseDTO, *common.AppError)
 }
@@ -37,19 +37,19 @@ func (jr jobRepository) CreateJob(ctx context.Context, job domain.Job) (*domain.
 
 	// Insert into database
 	query := `
-		INSERT INTO jobs (user_id, type, payload, status, priority, attempts, run_at, created_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id
+		INSERT INTO jobs (user_id, type, payload, status, priority, attempts, run_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id
 	`
-	run_at, _ := time.Parse(time.RFC3339, job.RunAt)
+	run_at := job.RunAt
 	job.Status = "pending"
-	job.CreatedAt = time.Now().Format(time.RFC3339)
-	job.UpdatedAt = time.Now().Format(time.RFC3339)
+	job.CreatedAt = time.Now().In(common.DhakaTZ)
+	job.UpdatedAt = time.Now().In(common.DhakaTZ)
 	job.Attempts = 0
 	var jobID uuid.UUID
 	err = tx.QueryRow(ctx, query,
 		job.UserID, job.Type, job.Payload,
 		job.Status, job.Priority, job.Attempts,
-		run_at, time.Now().Format(time.RFC3339),
+		run_at,
 	).Scan(&jobID)
 	if err != nil {
 		return nil, common.NewUnexpectedServerError("Failed to create job", err)
@@ -88,7 +88,7 @@ func (jr jobRepository) GetJobPayload(ctx context.Context, jobID uuid.UUID) (*ta
 	return &payload, nil
 }
 
-func (jr jobRepository) UpdateJobStatus(ctx context.Context, jobID uuid.UUID) (*domain.Job, *common.AppError) {
+func (jr jobRepository) UpdateJobStatus(ctx context.Context, jobID uuid.UUID, status string, attempts int) (*domain.Job, *common.AppError) {
 	// Extract transaction from context
 	tx, err := middleware.GetTxFromContext(ctx)
 	if err != nil {
@@ -97,14 +97,14 @@ func (jr jobRepository) UpdateJobStatus(ctx context.Context, jobID uuid.UUID) (*
 
 	// Update job status in database
 	query := `
-		UPDATE jobs SET status = 'completed', updated_at = $1 WHERE id = $2 RETURNING *
+		UPDATE jobs SET status = $1, attempts = $2, updated_at = $3 WHERE id = $4 RETURNING *
 	`
 	job := domain.Job{}
-	err = tx.QueryRow(ctx, query, time.Now().Format(time.RFC3339), jobID).Scan(&job.ID, &job.UserID, &job.Type, &job.Payload, &job.Status, &job.Priority, &job.Attempts, &job.RunAt, &job.CreatedAt, &job.UpdatedAt)
+	err = tx.QueryRow(ctx, query, status, attempts, time.Now().In(common.DhakaTZ), jobID).Scan(&job.ID, &job.UserID, &job.Type, &job.Payload, &job.Status, &job.Priority, &job.Attempts, &job.RunAt, &job.CreatedAt, &job.UpdatedAt)
 	if err != nil {
 		return nil, common.NewUnexpectedServerError("Failed to update job status", err)
 	}
-	job.UpdatedAt = time.Now().Format(time.RFC3339)
+	job.UpdatedAt = time.Now().In(common.DhakaTZ)
 	return &job, nil
 }
 

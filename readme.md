@@ -136,7 +136,7 @@ To ensure **efficient job processing**, GoQueue uses a **priority-aware scheduli
 ### ✅ Phase 4: Dashboard + Monitoring
 
 - [ ] Web UI (or CLI) to view jobs by user
-- [ ] Retry failed jobs manually
+- [x] Retry failed jobs manually
 - [ ] Add `/metrics` endpoint for Prometheus
 - [ ] Optional: Grafana setup
 
